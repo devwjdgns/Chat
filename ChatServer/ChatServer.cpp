@@ -83,6 +83,23 @@ void ChatServer::handleClient(ClientSession* client)
             }
             client->sendJson(response);
         }
+        else if (type == "search_friend")
+        {
+            std::vector<std::string> accounts;
+            std::vector<std::string> names;
+            bool ret = dataManager.searchUser(j["account"], accounts, names);
+            nlohmann::json response;
+            response["type"] = "search_friend";
+            response["users"] = nlohmann::json::array();
+            for (int i = 0; i < accounts.size(); i++)
+            {
+                response["users"].push_back({
+                    {"account", accounts[i]},
+                    {"name", names[i]}
+                    });
+            }
+            client->sendJson(response);
+        }
         else
         {
             broadcast(j, client->getSocket());

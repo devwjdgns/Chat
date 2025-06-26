@@ -7,6 +7,8 @@ ButtonWnd::ButtonWnd(TEXTSTRUCT text, SHAPESTRUCT shape, CString name, int size,
 	type = ELETYPE::BUTTON;
 	focus = FALSE;
 	click = FALSE;
+	enable = TRUE;
+	pressed = FALSE;
 }
 
 ButtonWnd::~ButtonWnd()
@@ -16,12 +18,12 @@ ButtonWnd::~ButtonWnd()
 
 COLORREF ButtonWnd::GetBackgroundColor()
 {
-	if (focus && click)
+	if ((focus && click && enable) || pressed)
 	{
 		COLORREF bg = ElementWnd::GetBackgroundColor();
 		return RGB(GetRValue(bg) * 0.8, GetGValue(bg) * 0.8, GetBValue(bg) * 0.8);
 	}
-	else if (focus)
+	else if (focus && enable)
 	{
 		COLORREF bg = ElementWnd::GetBackgroundColor();
 		return RGB(GetRValue(bg) * 0.9, GetGValue(bg) * 0.9, GetBValue(bg) * 0.9);

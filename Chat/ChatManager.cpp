@@ -2,6 +2,7 @@
 #include "framework.h"
 #include "ChatManager.h"
 #include "ChatDlg.h"
+#include "FriendDlg.h"
 #include "utility.h"
 
 #pragma comment(lib, "ws2_32.lib")
@@ -104,6 +105,50 @@ void ChatManager::loginAccountAct(std::string str)
     }
 }
 
+void ChatManager::searchFriend(CString account)
+{
+    nlohmann::json j;
+    j["type"] = "search_friend";
+    j["account"] = convertString(account);
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::searchFriendAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        std::vector<CString> resultList;
+        if (response.contains("users") && response["users"].is_array())
+        {
+            for (const auto& user : response["users"])
+            {
+                std::string name = user.value("name", "");
+                std::string account = user.value("account", "");
+
+                CString formatted;
+                formatted.Format(_T("%s(%s)"), convertString(name), convertString(account));
+                resultList.push_back(formatted);
+            }
+        }
+
+        int count = static_cast<int>(resultList.size());
+        CString* result = new CString[count];
+
+        for (int i = 0; i < count; ++i)
+        {
+            result[i] = resultList[i];
+        }
+
+        ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_SEARCH_FRIEND_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
 void ChatManager::sendMessage(CString time, CString chat)
 {
     nlohmann::json j;
@@ -137,7 +182,31 @@ void ChatManager::receive()
     {
         int recvLen = recv(sock, buffer, sizeof(buffer) - 1, 0);
         if (recvLen <= 0)
-            break;
+        {
+            sock = socket(AF_INET, SOCK_STREAM, 0);
+            if (sock == INVALID_SOCKET)
+            {
+                std::cerr << "Socket creation failed\n";
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                continue;
+            }
+            sockaddr_in serverAddr = {};
+            serverAddr.sin_family = AF_INET;
+            serverAddr.sin_port = htons(12345);
+            inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+            if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+            {
+                closesocket(sock);
+                sock = INVALID_SOCKET;
+                std::cerr << "Connect failed, retrying...\n";
+                CString* result = new CString(_T("Disconnected..."));
+                ::PostMessage(dlg->GetSafeHwnd(), WM_LOGOUT_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                continue;
+            }
+            continue;
+        }
         buffer[recvLen] = '\0';
         std::string message(buffer);
         try 
@@ -154,6 +223,10 @@ void ChatManager::receive()
             else if (response.contains("type") && response["type"] == "message")
             {
                 receiveMessage(message);
+            }
+            else if (response.contains("type") && response["type"] == "search_friend")
+            {
+                searchFriendAct(message);
             }
         }
         catch (const std::exception& e)

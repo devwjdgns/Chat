@@ -9,6 +9,9 @@ public:
 
 	COLORREF GetBackgroundColor() override;
 
+	void SetEnableStatus(BOOL e) { enable = e; }
+	void SetPressedStatus(BOOL p) { pressed = p; }
+
 protected:
 	DECLARE_MESSAGE_MAP()
 
@@ -23,4 +26,6 @@ public:
 private:
 	BOOL focus;
 	BOOL click;
+	BOOL enable;
+	BOOL pressed;
 };

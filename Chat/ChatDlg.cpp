@@ -9,6 +9,7 @@
 #include "afxdialogex.h"
 
 #include "utility.h"
+#include "FriendDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -60,6 +61,7 @@ CChatDlg::CChatDlg(CWnd* pParent /*=nullptr*/)
 	registerView = NULL;
 	mainChatView = NULL;
 	chatManager = new ChatManager(this);
+	friendDlg = new CFriendDlg(chatManager);
 }
 
 CChatDlg::~CChatDlg()
@@ -82,6 +84,11 @@ CChatDlg::~CChatDlg()
 	if (chatManager)
 	{
 		delete chatManager;
+	}
+
+	if (friendDlg)
+	{
+		delete friendDlg;
 	}
 }
 
@@ -133,6 +140,11 @@ void CChatDlg::MovePage(PAGE_NAME name)
 	default:
 		break;
 	}
+}
+
+CFriendDlg* CChatDlg::GetFriendDlg()
+{
+	return friendDlg;
 }
 
 void CChatDlg::DoDataExchange(CDataExchange* pDX)
@@ -382,12 +394,28 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 		}
 		else if (str.Compare(_T("ADDFRIEND")) == 0)
 		{
+			CRect rect;
+			GetWindowRect(&rect);
+			int centerX = (rect.left + rect.right) / 2;
+			int centerY = (rect.top + rect.bottom) / 2;
+			
+			EnableWindow(FALSE);
+			if(friendDlg->CreateWnd(this, CRect(centerX - 250, centerY - 300, centerX + 250, centerY + 300)))
+			{
+				friendDlg->ShowWindow(SW_SHOW);
+				friendDlg->UpdateWindow();
+				friendDlg->RunModalLoop();
+				friendDlg->DestroyWindow();
+			}
+			EnableWindow(TRUE);
+			/*
 			PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
 			((ScrollWnd*)sideView->GetElement(1))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("friend")), SHAPESTRUCT(), _T("FRIEND"), 70));
 			
 			CRect rect;
 			((ScrollWnd*)sideView->GetElement(1))->GetClientRect(rect);
 			((ScrollWnd*)sideView->GetElement(1))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+			*/
 		}
 		else if (str.Compare(_T("ADDROOM")) == 0)
 		{

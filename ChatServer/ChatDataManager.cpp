@@ -89,3 +89,32 @@ bool ChatDataManager::checkUser(const std::string& account, const std::string& p
     sqlite3_finalize(stmt);
     return result;
 }
+
+bool ChatDataManager::searchUser(const std::string& account, std::vector<std::string>& accounts, std::vector<std::string>& names)
+{
+    std::lock_guard<std::mutex> lock(db_mutex);
+    const char* SQL = "SELECT account, name FROM users WHERE account LIKE ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, SQL, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Search failed\n";
+        return false;
+    }
+
+    std::string pattern = "%" + std::string(account.c_str()) + "%";
+    sqlite3_bind_text(stmt, 1, pattern.c_str(), -1, SQLITE_STATIC);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const char* found_account = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        const char* found_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        if (found_account && found_name)
+        {
+            accounts.push_back(reinterpret_cast<const char*>(found_account));
+            names.push_back(reinterpret_cast<const char*>(found_name));
+        }
+    }
+    sqlite3_finalize(stmt);
+    return true;
+}

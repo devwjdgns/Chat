@@ -199,6 +199,7 @@
     <ClInclude Include="ChatDlg.h" />
     <ClInclude Include="ChatManager.h" />
     <ClInclude Include="ContainerWnd.h" />
+    <ClInclude Include="FriendDlg.h" />
     <ClInclude Include="PaneWnd.h" />
     <ClInclude Include="EditWnd.h" />
     <ClInclude Include="ElementWnd.h" />
@@ -216,6 +217,7 @@
     <ClCompile Include="ChatDlg.cpp" />
     <ClCompile Include="ChatManager.cpp" />
     <ClCompile Include="ContainerWnd.cpp" />
+    <ClCompile Include="FriendDlg.cpp" />
     <ClCompile Include="PaneWnd.cpp" />
     <ClCompile Include="EditWnd.cpp" />
     <ClCompile Include="ElementWnd.cpp" />

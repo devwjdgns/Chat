@@ -20,6 +20,9 @@ public:
 	void loginAccount(CString account, CString password);
 	void loginAccountAct(std::string str);
 
+	void searchFriend(CString account);
+	void searchFriendAct(std::string str);
+
 	void sendMessage(CString time, CString chat);
 	void receiveMessage(std::string str);
 	
