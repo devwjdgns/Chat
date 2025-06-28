@@ -1,8 +1,9 @@
 #pragma once
 #include "gdiplus.h"
 
-#define WM_BUTTON_CLICK WM_USER + 1
-#define WM_EDIT_COMPLETE WM_USER + 2
+#define WM_BUTTON_MENU WM_USER + 1
+#define WM_BUTTON_CLICK WM_USER + 2
+#define WM_EDIT_COMPLETE WM_USER + 3
 
 enum class ELETYPE
 {

@@ -12,8 +12,10 @@
 #define WM_LOGIN_ACTION (WM_USER + 100)
 #define WM_REGISTER_ACTION (WM_USER + 101)
 #define WM_LOGOUT_ACTION (WM_USER + 102)
+#define WM_DELETE_FRIEND_ACTION (WM_USER + 103)
+#define WM_SEARCH_FRIEND_ACTION (WM_USER + 104)
 
-#define WM_MESSAGE_RECEIVED (WM_USER + 200)
+#define WM_MESSAGE_RECEIVED (WM_USER + 120)
 
 enum PAGE_NAME
 {
@@ -54,12 +56,16 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg LRESULT OnButtonMenu(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnButtonClick(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnEditComplete(WPARAM wParam, LPARAM lParam);
 
 	afx_msg LRESULT OnLoginAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnRegisterAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnLogoutAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnAddFriendAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnDeleteFriendAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnSearchFriendAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnMessageReceived(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 

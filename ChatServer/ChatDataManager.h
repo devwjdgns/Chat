@@ -11,10 +11,17 @@ public:
 	~ChatDataManager();
 
 	bool createUserTable();
-	bool createUser(const std::string& name, const std::string& account, const std::string& password);
-	bool checkUser(const std::string& account, const std::string& password, int& id);
-	bool searchUser(const std::string& account, std::vector<std::string>& accounts, std::vector<std::string>& names);
+	bool createFriendTable();
 
+	bool createUser(const std::string& name, const std::string& account, const std::string& password);
+	bool assertUser(const std::string& account, const std::string& password, int& client_id);
+	bool searchUser(const int& client_id, const std::string& target, std::vector<std::string>& accounts, std::vector<std::string>& names);
+
+	bool createFriend(const int& client_id, const int& friend_id);
+	bool deleteFriend(const int& client_id, const int& friend_id);
+	bool searchFriend(const int& client_id, std::vector<std::string>& accounts, std::vector<std::string>& names);
+
+	int getUserID(const std::string& account);
 private:
 	sqlite3* db;
 	std::mutex db_mutex;

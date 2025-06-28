@@ -13,6 +13,7 @@ public:
 
 	ElementWnd* GetElement(int idx);
 	ElementWnd* FindElement(CString name);
+	void DeleteElement(int idx);
 	void ClearElement();
 	int GetElementCount();
 

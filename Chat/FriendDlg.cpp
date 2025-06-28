@@ -2,6 +2,7 @@
 #include "framework.h"
 #include "FriendDlg.h"
 #include "ChatManager.h"
+#include "utility.h"
 
 #include <dwmapi.h>
 
@@ -56,7 +57,8 @@ BOOL CFriendDlg::CreateWnd(CWnd* parent, CRect rect)
 BEGIN_MESSAGE_MAP(CFriendDlg, CWnd)
     ON_WM_PAINT()
 	ON_MESSAGE(WM_BUTTON_CLICK, &CFriendDlg::OnButtonClick)
-	ON_MESSAGE(WM_SEARCH_FRIEND_ACTION, &CFriendDlg::OnSearchFriendAction)
+	ON_MESSAGE(WM_SEARCH_USER_ACTION, &CFriendDlg::OnSearchUserAction)
+	ON_MESSAGE(WM_ADD_FRIEND_ACTION, &CFriendDlg::OnAddFriendAction)
 END_MESSAGE_MAP()
 
 void CFriendDlg::OnPaint()
@@ -78,11 +80,11 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 			if (paneWnd)
 			{
 				CString text = ((EditWnd*)paneWnd->GetElement(0))->GetItemText();
-				chatManager->searchFriend(text);
+				chatManager->searchUser(text);
 				sel = -1;
 			}
 		}
-		else if (str.Find(_T("Item")) >= 0)
+		else if (str.Find(_T("USER")) >= 0)
 		{
 			ButtonWnd* pBtn = NULL;
 			if (sel >= 0)
@@ -94,7 +96,7 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 					pBtn->Invalidate();
 				}
 			}
-			sel = _ttoi(str.Mid(4));
+			sel = _ttoi(trimFromAffix(str, _T("USER")));
 			pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
 			if (pBtn)
 			{
@@ -111,9 +113,8 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 			if (sel >= 0)
 			{
 				ButtonWnd* pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
-				CString account = pBtn->GetItemText();
-				account = account.Mid(account.Find(_T("(")) + 1, account.GetLength() - account.Find(_T("(")) - 2);
-				EndModalLoop(IDOK);
+				CString account = trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"));
+				chatManager->addFriend(account);
 			}
 		}
 		else if (str.Compare(_T("CLOSE")) == 0)
@@ -124,7 +125,7 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
-LRESULT CFriendDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
+LRESULT CFriendDlg::OnSearchUserAction(WPARAM wParam, LPARAM lParam)
 {
 	((ScrollWnd*)mainView->GetElement(1))->ClearElement();
 	int count = (int)wParam;
@@ -133,7 +134,7 @@ LRESULT CFriendDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
 	for (int i = 0; i < count; ++i)
 	{
 		CString name;
-		name.Format(_T("Item%d"), i);
+		name.Format(_T("USER%d"), i);
 		((ScrollWnd*)mainView->GetElement(1))->AddElement(new ButtonWnd(TEXTSTRUCT(result[i]), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 5, 10, 5), 10), name, 70, RGB(245, 245, 245)));
 	}
 	CRect rect;
@@ -141,5 +142,23 @@ LRESULT CFriendDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
 	mainView->GetElement(1)->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
 
 	delete[] result;
+	return 0;
+}
+
+LRESULT CFriendDlg::OnAddFriendAction(WPARAM wParam, LPARAM lParam)
+{
+	CString* result = reinterpret_cast<CString*>(lParam);
+	if (static_cast<BOOL>(wParam))
+	{
+		delete result;
+		ButtonWnd* pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
+		::SendMessage(GetParent()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, TRUE, (LPARAM)(LPCTSTR)pBtn->GetItemText());
+		EndModalLoop(IDOK);
+	}
+	else
+	{
+		MessageBox(*result, _T("Notice"), MB_OK | MB_ICONINFORMATION);
+		delete result;
+	}
 	return 0;
 }

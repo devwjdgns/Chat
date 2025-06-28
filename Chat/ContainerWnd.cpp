@@ -53,6 +53,13 @@ ElementWnd* ContainerWnd::FindElement(CString name)
 	return NULL;
 }
 
+void ContainerWnd::DeleteElement(int idx)
+{
+	if (elements.size() <= idx) return;
+	delete elements[idx];
+	elements.erase(elements.begin() + idx);
+}
+
 void ContainerWnd::ClearElement()
 {
 	for (int i = 0; i < elements.size(); i++)

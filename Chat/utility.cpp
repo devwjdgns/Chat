@@ -26,3 +26,25 @@ CString loadFromRegistry(const CString& key)
 {
 	return AfxGetApp()->GetProfileString(_T("ChatUtilSettings"), key, _T(""));
 }
+
+CString trimFromAffix(const CString& str, const CString& prefix)
+{
+	int pos = str.Find(prefix);
+	if (pos != -1)
+	{
+		CString tmp = str.Mid(pos + prefix.GetLength());
+		return tmp;
+	}
+	return CString();
+}
+
+CString trimFromAffix(const CString& str, const CString& prefix, const CString& suffix)
+{
+	int pos = str.Find(suffix);
+	if (pos != -1)
+	{
+		CString tmp = str.Left(pos);
+		return trimFromAffix(tmp, prefix);
+	}
+	return CString();
+}

@@ -50,8 +50,7 @@ END_MESSAGE_MAP()
 
 
 // CChatDlg 대화 상자
-
-
+int g_nDeleteFriend = -1;
 
 CChatDlg::CChatDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_CHAT_DIALOG, pParent)
@@ -160,11 +159,15 @@ BEGIN_MESSAGE_MAP(CChatDlg, CDialogEx)
 	ON_WM_DESTROY()
 	ON_WM_GETMINMAXINFO()
 	ON_WM_QUERYDRAGICON()
+	ON_MESSAGE(WM_BUTTON_MENU, &CChatDlg::OnButtonMenu)
 	ON_MESSAGE(WM_BUTTON_CLICK, &CChatDlg::OnButtonClick)
 	ON_MESSAGE(WM_EDIT_COMPLETE, &CChatDlg::OnEditComplete)
 	ON_MESSAGE(WM_LOGIN_ACTION, &CChatDlg::OnLoginAction)
 	ON_MESSAGE(WM_REGISTER_ACTION, &CChatDlg::OnRegisterAction)
 	ON_MESSAGE(WM_LOGOUT_ACTION, &CChatDlg::OnLogoutAction)
+	ON_MESSAGE(WM_ADD_FRIEND_ACTION, &CChatDlg::OnAddFriendAction)
+	ON_MESSAGE(WM_DELETE_FRIEND_ACTION, &CChatDlg::OnDeleteFriendAction)
+	ON_MESSAGE(WM_SEARCH_FRIEND_ACTION, &CChatDlg::OnSearchFriendAction)
 	ON_MESSAGE(WM_MESSAGE_RECEIVED, &CChatDlg::OnMessageReceived)
 END_MESSAGE_MAP()
 
@@ -338,6 +341,28 @@ CString GetCurrentDateTimeString()
 	return strTime;
 }
 
+LRESULT CChatDlg::OnButtonMenu(WPARAM wParam, LPARAM lParam)
+{
+	CString* pStr = (CString*)wParam;
+	if (pStr)
+	{
+		CString str = *pStr;
+		delete pStr;
+
+		if (str.Find(_T("FRIEND")) >= 0)
+		{
+			if (str.Find(_T("Delete")) >= 0)
+			{
+				g_nDeleteFriend = _ttoi(trimFromAffix(str, _T("FRIEND"), _T("^")));
+				PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+				ButtonWnd* pBtn = (ButtonWnd*)((ScrollWnd*)sideView->GetElement(1))->GetElement(g_nDeleteFriend);
+				chatManager->deleteFriend(trimFromAffix(pBtn->GetItemText(), _T("("), _T(")")));
+			}
+		}
+	}
+	return 0;
+}
+
 LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 {
 	CString* pStr = (CString*)wParam;
@@ -408,14 +433,6 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				friendDlg->DestroyWindow();
 			}
 			EnableWindow(TRUE);
-			/*
-			PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
-			((ScrollWnd*)sideView->GetElement(1))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("friend")), SHAPESTRUCT(), _T("FRIEND"), 70));
-			
-			CRect rect;
-			((ScrollWnd*)sideView->GetElement(1))->GetClientRect(rect);
-			((ScrollWnd*)sideView->GetElement(1))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
-			*/
 		}
 		else if (str.Compare(_T("ADDROOM")) == 0)
 		{
@@ -474,6 +491,7 @@ LRESULT CChatDlg::OnLoginAction(WPARAM wParam, LPARAM lParam)
 	{
 		saveToRegistry(_T("Account"), ((EditWnd*)loginView->GetElement(1))->GetItemText());
 		saveToRegistry(_T("Password"), ((EditWnd*)loginView->GetElement(3))->GetItemText());
+		chatManager->searchFriend();
 		MovePage(PAGE_NAME::MAINCHAT);
 	}
 	else
@@ -504,6 +522,70 @@ LRESULT CChatDlg::OnLogoutAction(WPARAM wParam, LPARAM lParam)
 	CString* result = reinterpret_cast<CString*>(lParam);
 	MovePage(PAGE_NAME::LOGIN);
 	delete result;
+	return 0;
+}
+
+LRESULT CChatDlg::OnAddFriendAction(WPARAM wParam, LPARAM lParam)
+{
+	LPCTSTR pStr = (LPCTSTR)lParam;
+	CString text(pStr);
+
+	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+
+	CString name;
+	name.Format(_T("FRIEND%d"), ((ScrollWnd*)sideView->GetElement(1))->GetElementCount());
+	ButtonWnd* pBtn = new ButtonWnd(TEXTSTRUCT(text), SHAPESTRUCT(), name, 70);
+	pBtn->AddContextMenu(_T("Delete"));
+	((ScrollWnd*)sideView->GetElement(1))->AddElement(pBtn);
+
+	CRect rect;
+	((ScrollWnd*)sideView->GetElement(1))->GetClientRect(rect);
+	((ScrollWnd*)sideView->GetElement(1))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+
+	return 0;
+}
+
+LRESULT CChatDlg::OnDeleteFriendAction(WPARAM wParam, LPARAM lParam)
+{
+	CString* result = reinterpret_cast<CString*>(lParam);
+	if (static_cast<BOOL>(wParam))
+	{
+		PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+		((ScrollWnd*)sideView->GetElement(1))->DeleteElement(g_nDeleteFriend);
+		g_nDeleteFriend = -1;
+
+		CRect rect;
+		((ScrollWnd*)sideView->GetElement(1))->GetClientRect(rect);
+		((ScrollWnd*)sideView->GetElement(1))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	}
+	else
+	{
+		MessageBox(*result, _T("Notice"), MB_OK | MB_ICONINFORMATION);
+	}
+	delete result;
+	return 0;
+}
+
+LRESULT CChatDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
+{
+	int count = (int)wParam;
+	CString* result = reinterpret_cast<CString*>(lParam);
+	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+	((ScrollWnd*)sideView->GetElement(1))->ClearElement();
+	for (int i = 0; i < count; ++i)
+	{
+		CString name;
+		name.Format(_T("FRIEND%d"), i);
+		ButtonWnd* pBtn = new ButtonWnd(TEXTSTRUCT(result[i]), SHAPESTRUCT(), name, 70);
+		pBtn->AddContextMenu(_T("Delete"));
+		((ScrollWnd*)sideView->GetElement(1))->AddElement(pBtn);
+	}
+	delete[] result;
+
+	CRect rect;
+	((ScrollWnd*)sideView->GetElement(1))->GetClientRect(rect);
+	((ScrollWnd*)sideView->GetElement(1))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	
 	return 0;
 }
 

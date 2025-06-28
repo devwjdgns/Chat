@@ -24,15 +24,20 @@ ChatManager::ChatManager(CChatDlg* dlg): dlg(dlg)
         sock = INVALID_SOCKET;
     }
 
-    std::thread receiver([this]() {
+    receiver = std::thread([this]() {
         this->receive();
         });
-    receiver.detach();
 }
 
 ChatManager::~ChatManager()
 {
+    state = false;
+
     closesocket(sock);
+
+    if (receiver.joinable())
+        receiver.join();
+
     WSACleanup();
 }
 
@@ -105,11 +110,120 @@ void ChatManager::loginAccountAct(std::string str)
     }
 }
 
-void ChatManager::searchFriend(CString account)
+void ChatManager::searchUser(CString account)
+{
+    nlohmann::json j;
+    j["type"] = "search_user";
+    j["account"] = convertString(account);
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::searchUserAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        std::vector<CString> resultList;
+        if (response.contains("users") && response["users"].is_array())
+        {
+            for (const auto& user : response["users"])
+            {
+                std::string name = user.value("name", "");
+                std::string account = user.value("account", "");
+
+                CString formatted;
+                formatted.Format(_T("%s(%s)"), convertString(name), convertString(account));
+                resultList.push_back(formatted);
+            }
+        }
+
+        int count = static_cast<int>(resultList.size());
+        CString* result = new CString[count];
+
+        for (int i = 0; i < count; ++i)
+        {
+            result[i] = resultList[i];
+        }
+
+        ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_SEARCH_USER_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::addFriend(CString account)
+{
+    nlohmann::json j;
+    j["type"] = "add_friend";
+    j["account"] = convertString(account);
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::addFriendAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        if (response["status"].get<bool>())
+        {
+            CString* result = new CString(_T(""));
+            ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+        else
+        {
+            CString* result = new CString(_T("Add friend failed!"));
+            ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::deleteFriend(CString account)
+{
+    nlohmann::json j;
+    j["type"] = "delete_friend";
+    j["account"] = convertString(account);
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::deleteFriendAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        if (response["status"].get<bool>())
+        {
+            CString* result = new CString(_T(""));
+            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_FRIEND_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+        else
+        {
+            CString* result = new CString(_T("Delete friend failed!"));
+            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_FRIEND_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::searchFriend()
 {
     nlohmann::json j;
     j["type"] = "search_friend";
-    j["account"] = convertString(account);
     std::string json = j.dump();
     send(sock, json.c_str(), json.length(), 0);
 }
@@ -140,8 +254,7 @@ void ChatManager::searchFriendAct(std::string str)
         {
             result[i] = resultList[i];
         }
-
-        ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_SEARCH_FRIEND_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+        ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_FRIEND_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
     }
     catch (const std::exception& e)
     {
@@ -178,7 +291,7 @@ void ChatManager::receiveMessage(std::string str)
 void ChatManager::receive()
 {
     char buffer[1024];
-    while (true) 
+    while (state) 
     {
         int recvLen = recv(sock, buffer, sizeof(buffer) - 1, 0);
         if (recvLen <= 0)
@@ -223,6 +336,18 @@ void ChatManager::receive()
             else if (response.contains("type") && response["type"] == "message")
             {
                 receiveMessage(message);
+            }
+            else if (response.contains("type") && response["type"] == "search_user")
+            {
+                searchUserAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "add_friend")
+            {
+                addFriendAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "delete_friend")
+            {
+                deleteFriendAct(message);
             }
             else if (response.contains("type") && response["type"] == "search_friend")
             {

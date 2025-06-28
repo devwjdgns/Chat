@@ -42,6 +42,8 @@ BEGIN_MESSAGE_MAP(ButtonWnd, CWnd)
 	ON_WM_LBUTTONUP()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
+	ON_WM_CONTEXTMENU()
+	ON_COMMAND_RANGE(1000, 1234, OnDynamicMenuCommand)
 END_MESSAGE_MAP()
 
 void ButtonWnd::OnSize(UINT nType, int cx, int cy)
@@ -102,4 +104,24 @@ void ButtonWnd::OnMouseLeave()
 	}
 	
 	ItemWnd::OnMouseLeave();
+}
+
+void ButtonWnd::OnContextMenu(CWnd* /*pWnd*/, CPoint point)
+{
+	CMenu menu;
+	menu.CreatePopupMenu();
+
+	const UINT BASE_COMMAND_ID = 1000;
+	for (size_t i = 0; i < menus.GetCount(); ++i)
+	{
+		menu.AppendMenu(MF_STRING, BASE_COMMAND_ID + static_cast<UINT>(i), menus.GetAt(i));
+	}
+	menu.TrackPopupMenu(TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, this);
+}
+
+void ButtonWnd::OnDynamicMenuCommand(UINT nID)
+{
+	const UINT BASE_COMMAND_ID = 1000;
+	UINT index = nID - BASE_COMMAND_ID;
+	SendMessageParent(WM_BUTTON_MENU, GetName() + _T("^") + menus.GetAt(index));
 }

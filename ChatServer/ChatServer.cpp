@@ -73,7 +73,7 @@ void ChatServer::handleClient(ClientSession* client)
         else if (type == "login")
         {
             int id;
-            bool ret = dataManager.checkUser(j["account"], j["password"], id);
+            bool ret = dataManager.assertUser(j["account"], j["password"], id);
             nlohmann::json response;
             response["type"] = "login";
             response["status"] = ret;
@@ -83,11 +83,46 @@ void ChatServer::handleClient(ClientSession* client)
             }
             client->sendJson(response);
         }
+        else if (type == "search_user")
+        {
+            std::vector<std::string> accounts;
+            std::vector<std::string> names;
+            bool ret = dataManager.searchUser(client->getID(), j["account"], accounts, names);
+            nlohmann::json response;
+            response["type"] = "search_user";
+            response["users"] = nlohmann::json::array();
+            for (int i = 0; i < accounts.size(); i++)
+            {
+                response["users"].push_back({
+                    {"account", accounts[i]},
+                    {"name", names[i]}
+                    });
+            }
+            client->sendJson(response);
+        }
+        else if (type == "add_friend")
+        {
+            int id = dataManager.getUserID(j["account"]);
+            bool ret = dataManager.createFriend(client->getID(), id);
+            nlohmann::json response;
+            response["type"] = "add_friend";
+            response["status"] = ret;
+            client->sendJson(response);
+        }
+        else if (type == "delete_friend")
+        {
+            int id = dataManager.getUserID(j["account"]);
+            bool ret = dataManager.deleteFriend(client->getID(), id);
+            nlohmann::json response;
+            response["type"] = "delete_friend";
+            response["status"] = ret;
+            client->sendJson(response);
+        }
         else if (type == "search_friend")
         {
             std::vector<std::string> accounts;
             std::vector<std::string> names;
-            bool ret = dataManager.searchUser(j["account"], accounts, names);
+            bool ret = dataManager.searchFriend(client->getID(), accounts, names);
             nlohmann::json response;
             response["type"] = "search_friend";
             response["users"] = nlohmann::json::array();
