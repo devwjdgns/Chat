@@ -13,6 +13,9 @@ public:
 	void SetPressedStatus(BOOL p) { pressed = p; }
 	void AddContextMenu(CString item) { menus.Add(item); }
 
+	BOOL GetEnableStatus() { return enable; }
+	BOOL GetPressedStatus() { return pressed; }
+
 protected:
 	DECLARE_MESSAGE_MAP()
 

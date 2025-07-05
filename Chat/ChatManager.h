@@ -32,6 +32,15 @@ public:
 	void searchFriend();
 	void searchFriendAct(std::string str);
 
+	void createRoom(CString name, CArray<CString, CString>& friends);
+	void createRoomAct(std::string str);
+
+	void deleteRoom(int id);
+	void deleteRoomAct(std::string str);
+
+	void searchRoom();
+	void searchRoomAct(std::string str);
+
 	void sendMessage(CString time, CString chat);
 	void receiveMessage(std::string str);
 	

@@ -13,6 +13,8 @@ ChatDataManager::ChatDataManager()
 
     createUserTable();
     createFriendTable();
+    createRoomTable();
+    createMessageTable();
 }
 
 ChatDataManager::~ChatDataManager()
@@ -49,7 +51,68 @@ bool ChatDataManager::createFriendTable()
         "friend_id INTEGER NOT NULL, "
         "UNIQUE(user_id, friend_id), "
         "FOREIGN KEY(user_id) REFERENCES users(id), "
-        "FOREIGN KEY(friend_id) REFERENCES users(id)); ";
+        "FOREIGN KEY(friend_id) REFERENCES users(id));";
+
+    char* errMsg = nullptr;
+    int rc = sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Create table error: " << errMsg << "\n";
+        sqlite3_free(errMsg);
+        return false;
+    }
+    return true;
+}
+
+bool ChatDataManager::createRoomTable()
+{
+    {
+        const char* createTableSQL =
+            "CREATE TABLE IF NOT EXISTS rooms("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "name TEXT);";
+
+        char* errMsg = nullptr;
+        int rc = sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg);
+        if (rc != SQLITE_OK)
+        {
+            std::cerr << "Create table error: " << errMsg << "\n";
+            sqlite3_free(errMsg);
+            return false;
+        }
+    }
+    {
+        const char* createTableSQL =
+            "CREATE TABLE IF NOT EXISTS room_members("
+            "room_id INTEGER NOT NULL, "
+            "user_id INTEGER NOT NULL, "
+            "PRIMARY KEY(room_id, user_id), "
+            "FOREIGN KEY(room_id) REFERENCES rooms(id) ON DELETE CASCADE, "
+            "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);";
+
+        char* errMsg = nullptr;
+        int rc = sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg);
+        if (rc != SQLITE_OK)
+        {
+            std::cerr << "Create table error: " << errMsg << "\n";
+            sqlite3_free(errMsg);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ChatDataManager::createMessageTable()
+{
+    const char* createTableSQL =
+        "CREATE TABLE IF NOT EXISTS messages("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "room_id INTEGER NOT NULL, "
+        "sender_id INTEGER NOT NULL, "
+        "content TEXT NOT NULL, "
+        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
+        "FOREIGN KEY(room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE, "
+        "FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE SET NULL);";
 
     char* errMsg = nullptr;
     int rc = sqlite3_exec(db, createTableSQL, nullptr, nullptr, &errMsg);
@@ -224,6 +287,181 @@ bool ChatDataManager::searchFriend(const int& client_id, std::vector<std::string
         }
     }
     sqlite3_finalize(stmt);
+    return true;
+}
+
+bool ChatDataManager::createRoom(const std::string& name, const std::vector<int>& members, int& room_id)
+{
+    std::lock_guard<std::mutex> lock(db_mutex);
+    const char* SQL = "INSERT INTO rooms (name) VALUES (?);";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, SQL, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Prepare failed\n";
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        std::cerr << "Insert failed\n";
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    room_id = (int)sqlite3_last_insert_rowid(db);
+
+    sqlite3_finalize(stmt);
+
+    const char* insertSQL = "INSERT INTO room_members (room_id, user_id) VALUES (?, ?);";
+
+    if (sqlite3_prepare_v2(db, insertSQL, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Prepare insert member failed: " << sqlite3_errmsg(db) << "\n";
+        return false;
+    }
+
+    char* errMsg = nullptr;
+    if (sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, &errMsg) != SQLITE_OK)
+    {
+        std::cerr << "Failed to begin transaction: " << errMsg << "\n";
+        sqlite3_free(errMsg);
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    for (const auto& memberId : members)
+    {
+        sqlite3_reset(stmt);
+        sqlite3_clear_bindings(stmt);
+
+        sqlite3_bind_int(stmt, 1, room_id);
+        sqlite3_bind_int(stmt, 2, memberId);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE)
+        {
+            std::cerr << "Insert member failed\n";
+
+            sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, nullptr);
+            sqlite3_finalize(stmt);
+            return false;
+        }
+    }
+
+    if (sqlite3_exec(db, "COMMIT;", nullptr, nullptr, &errMsg) != SQLITE_OK)
+    {
+        std::cerr << "Failed to commit transaction: " << errMsg << "\n";
+        sqlite3_free(errMsg);
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return true;
+}
+
+bool ChatDataManager::deleteRoom(const int& client_id, const int& room_id)
+{
+    std::lock_guard<std::mutex> lock(db_mutex);
+    sqlite3_stmt* stmt;
+
+    const char* deleteMemberSQL = "DELETE FROM room_members WHERE room_id = ? AND user_id = ?;";
+    if (sqlite3_prepare_v2(db, deleteMemberSQL, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Prepare delete member failed\n";
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, room_id);
+    sqlite3_bind_int(stmt, 2, client_id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        std::cerr << "Delete member failed\n";
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+
+    const char* countSQL = "SELECT COUNT(*) FROM room_members WHERE room_id = ?;";
+    if (sqlite3_prepare_v2(db, countSQL, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Prepare count failed\n";
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, room_id);
+
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        count = sqlite3_column_int(stmt, 0);
+    }
+    else
+    {
+        std::cerr << "Count query failed\n";
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (count == 0)
+    {
+        const char* deleteRoomSQL = "DELETE FROM rooms WHERE id = ?;";
+        if (sqlite3_prepare_v2(db, deleteRoomSQL, -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            std::cerr << "Prepare delete room failed\n";
+            return false;
+        }
+
+        sqlite3_bind_int(stmt, 1, room_id);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE)
+        {
+            std::cerr << "Delete room failed\n";
+            sqlite3_finalize(stmt);
+            return false;
+        }
+
+        sqlite3_finalize(stmt);
+    }
+
+    return true;
+}
+
+bool ChatDataManager::searchRoom(const int& client_id, std::vector<int>& ids, std::vector<std::string>& names)
+{
+    std::lock_guard<std::mutex> lock(db_mutex);
+    const char* SQL = "SELECT r.id, r.name FROM room_members rm "
+        "JOIN rooms r ON rm.room_id = r.id WHERE rm.user_id = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, SQL, -1, &stmt, nullptr) != SQLITE_OK) 
+    {
+        std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << "\n";
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, client_id);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) 
+    {
+        int id = sqlite3_column_int(stmt, 0);
+        const unsigned char* name = sqlite3_column_text(stmt, 1);
+        if (name)
+        {
+            ids.push_back(id);
+            names.push_back(reinterpret_cast<const char*>(name));
+        }
+    }
+
+    sqlite3_finalize(stmt);
+
     return true;
 }
 

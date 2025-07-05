@@ -29,6 +29,10 @@ CString loadFromRegistry(const CString& key)
 
 CString trimFromAffix(const CString& str, const CString& prefix)
 {
+	if (prefix.IsEmpty())
+	{
+		return str;
+	}
 	int pos = str.Find(prefix);
 	if (pos != -1)
 	{
@@ -40,6 +44,10 @@ CString trimFromAffix(const CString& str, const CString& prefix)
 
 CString trimFromAffix(const CString& str, const CString& prefix, const CString& suffix)
 {
+	if (suffix.IsEmpty())
+	{
+		return str;
+	}
 	int pos = str.Find(suffix);
 	if (pos != -1)
 	{

@@ -63,6 +63,7 @@ public:
 	int GetTextWidth();
 	int GetTextHeight();
 	
+	//virtual void SetItemText(CString text);
 	virtual CString GetItemText();
 
 protected:

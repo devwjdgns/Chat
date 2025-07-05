@@ -10,6 +10,7 @@
 
 #include "utility.h"
 #include "FriendDlg.h"
+#include "RoomDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -51,6 +52,7 @@ END_MESSAGE_MAP()
 
 // CChatDlg 대화 상자
 int g_nDeleteFriend = -1;
+int g_nDeleteRoom = -1;
 
 CChatDlg::CChatDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_CHAT_DIALOG, pParent)
@@ -61,6 +63,8 @@ CChatDlg::CChatDlg(CWnd* pParent /*=nullptr*/)
 	mainChatView = NULL;
 	chatManager = new ChatManager(this);
 	friendDlg = new CFriendDlg(chatManager);
+	roomDlg = new CRoomDlg(chatManager);
+	m_gdiplusToken = 0;
 }
 
 CChatDlg::~CChatDlg()
@@ -88,6 +92,11 @@ CChatDlg::~CChatDlg()
 	if (friendDlg)
 	{
 		delete friendDlg;
+	}
+
+	if (roomDlg)
+	{
+		delete roomDlg;
 	}
 }
 
@@ -146,6 +155,11 @@ CFriendDlg* CChatDlg::GetFriendDlg()
 	return friendDlg;
 }
 
+CRoomDlg* CChatDlg::GetRoomDlg()
+{
+	return roomDlg;
+}
+
 void CChatDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
@@ -168,6 +182,9 @@ BEGIN_MESSAGE_MAP(CChatDlg, CDialogEx)
 	ON_MESSAGE(WM_ADD_FRIEND_ACTION, &CChatDlg::OnAddFriendAction)
 	ON_MESSAGE(WM_DELETE_FRIEND_ACTION, &CChatDlg::OnDeleteFriendAction)
 	ON_MESSAGE(WM_SEARCH_FRIEND_ACTION, &CChatDlg::OnSearchFriendAction)
+	ON_MESSAGE(WM_CREATE_ROOM_ACTION, &CChatDlg::OnCreateRoomAction)
+	ON_MESSAGE(WM_DELETE_ROOM_ACTION, &CChatDlg::OnDeleteRoomAction)
+	ON_MESSAGE(WM_SEARCH_ROOM_ACTION, &CChatDlg::OnSearchRoomAction)
 	ON_MESSAGE(WM_MESSAGE_RECEIVED, &CChatDlg::OnMessageReceived)
 END_MESSAGE_MAP()
 
@@ -359,6 +376,18 @@ LRESULT CChatDlg::OnButtonMenu(WPARAM wParam, LPARAM lParam)
 				chatManager->deleteFriend(trimFromAffix(pBtn->GetItemText(), _T("("), _T(")")));
 			}
 		}
+		else if (str.Find(_T("ROOM")) >= 0)
+		{
+			if (str.Find(_T("Rename")) >= 0)
+			{
+
+			}
+			else if (str.Find(_T("Delete")) >= 0)
+			{
+				g_nDeleteRoom = _ttoi(trimFromAffix(str, _T("ROOM"), _T("^")));
+				chatManager->deleteRoom(_ttoi(trimFromAffix(str, _T("("), _T(")"))));
+			}
+		}
 	}
 	return 0;
 }
@@ -433,18 +462,37 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				friendDlg->DestroyWindow();
 			}
 			EnableWindow(TRUE);
+			SetWindowPos(&CWnd::wndTop, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 		}
-		else if (str.Compare(_T("ADDROOM")) == 0)
+		else if (str.Compare(_T("CREATEROOM")) == 0)
 		{
-			PaneWnd* sideView = dynamic_cast<PaneWnd*>(mainChatView->GetElement(0));
-			if(sideView)
+			CRect rect;
+			GetWindowRect(&rect);
+			int centerX = (rect.left + rect.right) / 2;
+			int centerY = (rect.top + rect.bottom) / 2;
+
+			CArray<CString, CString> friends;
+			PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+			int count = ((ScrollWnd*)sideView->GetElement(1))->GetElementCount();
+			ItemWnd* tmpItem = NULL;
+			for (int i = 0; i < count; i++)
 			{
-				((ScrollWnd*)sideView->GetElement(3))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("room")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(0, 0, 0, 0), 10), _T("ROOM"), 70));
-			
-				CRect rect;
-				((ScrollWnd*)sideView->GetElement(3))->GetClientRect(rect);
-				((ScrollWnd*)sideView->GetElement(3))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+				tmpItem = dynamic_cast<ItemWnd*>(((ScrollWnd*)sideView->GetElement(1))->GetElement(i));
+				if (tmpItem)
+				{
+					friends.Add(tmpItem->GetItemText());
+				}
 			}
+			EnableWindow(FALSE);
+			if (roomDlg->CreateWnd(this, CRect(centerX - 250, centerY - 360, centerX + 250, centerY + 360), friends))
+			{
+				roomDlg->ShowWindow(SW_SHOW);
+				roomDlg->UpdateWindow();
+				roomDlg->RunModalLoop();
+				roomDlg->DestroyWindow();
+			}
+			EnableWindow(TRUE);
+			SetWindowPos(&CWnd::wndTop, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 		}
 		else if (str.Compare(_T("SENDMESSAGE")) == 0)
 		{
@@ -492,6 +540,7 @@ LRESULT CChatDlg::OnLoginAction(WPARAM wParam, LPARAM lParam)
 		saveToRegistry(_T("Account"), ((EditWnd*)loginView->GetElement(1))->GetItemText());
 		saveToRegistry(_T("Password"), ((EditWnd*)loginView->GetElement(3))->GetItemText());
 		chatManager->searchFriend();
+		chatManager->searchRoom();
 		MovePage(PAGE_NAME::MAINCHAT);
 	}
 	else
@@ -589,6 +638,74 @@ LRESULT CChatDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+LRESULT CChatDlg::OnCreateRoomAction(WPARAM wParam, LPARAM lParam)
+{
+	LPCTSTR pId = (LPCTSTR)wParam;
+	LPCTSTR pStr = (LPCTSTR)lParam;
+	CString id(pId);
+	CString text(pStr);
+
+	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+
+	CString name;
+	name.Format(_T("(%s)ROOM%d"), id, ((ScrollWnd*)sideView->GetElement(3))->GetElementCount());
+	ButtonWnd* pBtn = new ButtonWnd(TEXTSTRUCT(text), SHAPESTRUCT(), name, 70);
+	pBtn->AddContextMenu(_T("Rename"));
+	pBtn->AddContextMenu(_T("Delete"));
+	((ScrollWnd*)sideView->GetElement(3))->AddElement(pBtn);
+
+	CRect rect;
+	((ScrollWnd*)sideView->GetElement(3))->GetClientRect(rect);
+	((ScrollWnd*)sideView->GetElement(3))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+
+	return 0;
+}
+
+LRESULT CChatDlg::OnDeleteRoomAction(WPARAM wParam, LPARAM lParam)
+{
+	CString* result = reinterpret_cast<CString*>(lParam);
+	if (static_cast<BOOL>(wParam))
+	{
+		PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+		((ScrollWnd*)sideView->GetElement(3))->DeleteElement(g_nDeleteRoom);
+		g_nDeleteRoom = -1;
+
+		CRect rect;
+		((ScrollWnd*)sideView->GetElement(3))->GetClientRect(rect);
+		((ScrollWnd*)sideView->GetElement(3))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	}
+	else
+	{
+		MessageBox(*result, _T("Notice"), MB_OK | MB_ICONINFORMATION);
+	}
+	delete result;
+	return 0;
+}
+
+LRESULT CChatDlg::OnSearchRoomAction(WPARAM wParam, LPARAM lParam)
+{
+	int count = (int)wParam;
+	CString* result = reinterpret_cast<CString*>(lParam);
+	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+	((ScrollWnd*)sideView->GetElement(3))->ClearElement();
+	for (int i = 0; i < count; ++i)
+	{
+		CString id = trimFromAffix(result[i], _T("("), _T(")"));
+		CString text = trimFromAffix(result[i], _T(")"));
+		CString name;
+		name.Format(_T("(%s)ROOM%d"), id, i);
+		ButtonWnd* pBtn = new ButtonWnd(TEXTSTRUCT(text), SHAPESTRUCT(), name, 70);
+		pBtn->AddContextMenu(_T("Delete"));
+		((ScrollWnd*)sideView->GetElement(3))->AddElement(pBtn);
+	}
+	delete[] result;
+
+	CRect rect;
+	((ScrollWnd*)sideView->GetElement(3))->GetClientRect(rect);
+	((ScrollWnd*)sideView->GetElement(3))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	return 0;
+}
+
 LRESULT CChatDlg::OnMessageReceived(WPARAM wParam, LPARAM lParam)
 {
 	CString* pTime = reinterpret_cast<CString*>(wParam);
@@ -660,7 +777,7 @@ void CChatDlg::InitMainChatView()
 
 	sideView->AddElement(new PaneWnd(DIRECTION::HORIZONTAL, _T(""), 60));
 	((PaneWnd*)sideView->GetElement(2))->AddElement(new ItemWnd(TEXTSTRUCT(_T("Rooms"), TEXTSTRUCT::STYLE::BOLD, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::LEFT), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(10, 10, 10, 0)), _T(""), -1));
-	((PaneWnd*)sideView->GetElement(2))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::PLUS, CRect(10, 20, 20, 10)), _T("ADDROOM"), 60, sideView->GetBackgroundColor(), 0));
+	((PaneWnd*)sideView->GetElement(2))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::PLUS, CRect(10, 20, 20, 10)), _T("CREATEROOM"), 60, sideView->GetBackgroundColor(), 0));
 	sideView->AddElement(new ScrollWnd(DIRECTION::VERTICAL, _T("ROOMS"), -1));
 
 	ScrollWnd* chatWnd = new ScrollWnd(DIRECTION::VERTICAL, _T("CHAT"), -1);

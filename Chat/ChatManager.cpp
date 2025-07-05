@@ -3,6 +3,7 @@
 #include "ChatManager.h"
 #include "ChatDlg.h"
 #include "FriendDlg.h"
+#include "RoomDlg.h"
 #include "utility.h"
 
 #pragma comment(lib, "ws2_32.lib")
@@ -234,9 +235,9 @@ void ChatManager::searchFriendAct(std::string str)
     {
         nlohmann::json response = nlohmann::json::parse(str);
         std::vector<CString> resultList;
-        if (response.contains("users") && response["users"].is_array())
+        if (response.contains("friends") && response["friends"].is_array())
         {
-            for (const auto& user : response["users"])
+            for (const auto& user : response["friends"])
             {
                 std::string name = user.value("name", "");
                 std::string account = user.value("account", "");
@@ -255,6 +256,122 @@ void ChatManager::searchFriendAct(std::string str)
             result[i] = resultList[i];
         }
         ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_FRIEND_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::createRoom(CString name, CArray<CString, CString>& friends)
+{
+    std::vector<std::string> accounts;
+    for (int i = 0; i < friends.GetCount(); i++)
+    {
+        accounts.push_back(convertString(friends.GetAt(i)));
+    }
+    nlohmann::json j;
+    j["type"] = "create_room";
+    j["name"] = convertString(name);
+    j["accounts"] = accounts;
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::createRoomAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        if (response["status"].get<bool>())
+        {
+            CString id;
+            id.Format(_T("%d"), response["id"].get<int>());
+            CString* result = new CString(id);
+            ::PostMessage(dlg->GetRoomDlg()->GetSafeHwnd(), WM_CREATE_ROOM_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+        else
+        {
+            CString* result = new CString(_T("Create Room failed!"));
+            ::PostMessage(dlg->GetRoomDlg()->GetSafeHwnd(), WM_CREATE_ROOM_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::deleteRoom(int id)
+{
+    nlohmann::json j;
+    j["type"] = "delete_room";
+    j["id"] = id;
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::deleteRoomAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        if (response["status"].get<bool>())
+        {
+            CString* result = new CString(_T(""));
+            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_ROOM_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+        else
+        {
+            CString* result = new CString(_T("Delete Room failed!"));
+            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_ROOM_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
+            return;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::searchRoom()
+{
+    nlohmann::json j;
+    j["type"] = "search_room";
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::searchRoomAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        std::vector<CString> resultList;
+        if (response.contains("rooms") && response["rooms"].is_array())
+        {
+            for (const auto& room : response["rooms"])
+            {
+                int id = room.value("id", 0);
+                std::string name = room.value("name", "");
+
+                CString formatted;
+                formatted.Format(_T("(%d)%s"), id, convertString(name));
+                resultList.push_back(formatted);
+            }
+        }
+
+        int count = static_cast<int>(resultList.size());
+        CString* result = new CString[count];
+
+        for (int i = 0; i < count; ++i)
+        {
+            result[i] = resultList[i];
+        }
+        ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_ROOM_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
     }
     catch (const std::exception& e)
     {
@@ -294,6 +411,7 @@ void ChatManager::receive()
     while (state) 
     {
         int recvLen = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (!state) break;
         if (recvLen <= 0)
         {
             sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -352,6 +470,18 @@ void ChatManager::receive()
             else if (response.contains("type") && response["type"] == "search_friend")
             {
                 searchFriendAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "create_room")
+            {
+                createRoomAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "delete_room")
+            {
+                deleteRoomAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "search_room")
+            {
+                searchRoomAct(message);
             }
         }
         catch (const std::exception& e)

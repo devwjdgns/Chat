@@ -14,6 +14,8 @@
 #define WM_LOGOUT_ACTION (WM_USER + 102)
 #define WM_DELETE_FRIEND_ACTION (WM_USER + 103)
 #define WM_SEARCH_FRIEND_ACTION (WM_USER + 104)
+#define WM_DELETE_ROOM_ACTION (WM_USER + 105)
+#define WM_SEARCH_ROOM_ACTION (WM_USER + 106)
 
 #define WM_MESSAGE_RECEIVED (WM_USER + 120)
 
@@ -25,6 +27,7 @@ enum PAGE_NAME
 };
 
 class CFriendDlg;
+class CRoomDlg;
 // CChatDlg 대화 상자
 class CChatDlg : public CDialogEx
 {
@@ -39,6 +42,7 @@ public:
 
 	void MovePage(PAGE_NAME name);
 	CFriendDlg* GetFriendDlg();
+	CRoomDlg* GetRoomDlg();
 
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 지원입니다.
@@ -66,6 +70,9 @@ protected:
 	afx_msg LRESULT OnAddFriendAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDeleteFriendAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSearchFriendAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnCreateRoomAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnDeleteRoomAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnSearchRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnMessageReceived(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 
@@ -87,4 +94,5 @@ private:
 
 private:
 	CFriendDlg* friendDlg;
+	CRoomDlg* roomDlg;
 };

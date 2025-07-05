@@ -125,11 +125,53 @@ void ChatServer::handleClient(ClientSession* client)
             bool ret = dataManager.searchFriend(client->getID(), accounts, names);
             nlohmann::json response;
             response["type"] = "search_friend";
-            response["users"] = nlohmann::json::array();
+            response["friends"] = nlohmann::json::array();
             for (int i = 0; i < accounts.size(); i++)
             {
-                response["users"].push_back({
+                response["friends"].push_back({
                     {"account", accounts[i]},
+                    {"name", names[i]}
+                    });
+            }
+            client->sendJson(response);
+        }
+        else if (type == "create_room")
+        {
+            std::vector<std::string> accounts = j["accounts"];
+            std::vector<int> members;
+            members.push_back(client->getID());
+            for (auto account : accounts)
+            {
+                members.push_back(dataManager.getUserID(account));
+            }
+            int id = -1;
+            bool ret = dataManager.createRoom(j["name"], members, id);
+            nlohmann::json response;
+            response["type"] = "create_room";
+            response["id"] = id;
+            response["status"] = ret;
+            client->sendJson(response);
+        }
+        else if (type == "delete_room")
+        {
+            bool ret = dataManager.deleteRoom(client->getID(), j["id"]);
+            nlohmann::json response;
+            response["type"] = "delete_room";
+            response["status"] = ret;
+            client->sendJson(response);
+        }
+        else if (type == "search_room")
+        {
+            std::vector<int> ids;
+            std::vector<std::string> names;
+            bool ret = dataManager.searchRoom(client->getID(), ids, names);
+            nlohmann::json response;
+            response["type"] = "search_room";
+            response["rooms"] = nlohmann::json::array();
+            for (int i = 0; i < ids.size(); i++)
+            {
+                response["rooms"].push_back({
+                    {"id", ids[i]},
                     {"name", names[i]}
                     });
             }
