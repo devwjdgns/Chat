@@ -27,7 +27,12 @@ public:
 	bool deleteRoom(const int& client_id, const int& room_id);
 	bool searchRoom(const int& client_id, std::vector<int>& ids, std::vector<std::string>& names);
 
+	bool createMessage(const int& client_id, const int& room_id, const std::string& message, const std::string& timestamp);
+	bool searchMessage(const int& client_id, const int& room_id, std::vector<std::string>& names, std::vector<std::string>& messages, std::vector<std::string>& timestamps);
+
 	int getUserID(const std::string& account);
+	int getRoomID(const int& client_id, const int& friend_id);
+	std::vector<int> getMembersID(const int& room_id);
 private:
 	sqlite3* db;
 	std::mutex db_mutex;

@@ -353,10 +353,10 @@ void ChatManager::searchRoomAct(std::string str)
         std::vector<CString> resultList;
         if (response.contains("rooms") && response["rooms"].is_array())
         {
-            for (const auto& room : response["rooms"])
+            for (const auto& rooms : response["rooms"])
             {
-                int id = room.value("id", 0);
-                std::string name = room.value("name", "");
+                int id = rooms.value("id", 0);
+                std::string name = rooms.value("name", "");
 
                 CString formatted;
                 formatted.Format(_T("(%d)%s"), id, convertString(name));
@@ -379,15 +379,68 @@ void ChatManager::searchRoomAct(std::string str)
     }
 }
 
-void ChatManager::sendMessage(CString time, CString chat)
+void ChatManager::searchMessage(int id)
 {
     nlohmann::json j;
-    j["type"] = "message";
-    j["time"] = convertString(time);
-    j["chat"] = convertString(chat);
+    j["type"] = "search_message";
+    j["id"] = id;
     std::string json = j.dump();
     send(sock, json.c_str(), json.length(), 0);
-    dlg->SendChatMessage(time, chat);
+}
+
+void ChatManager::searchMessage(CString account)
+{
+    nlohmann::json j;
+    j["type"] = "search_message";
+    j["account"] = convertString(account);
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
+void ChatManager::searchMessageAct(std::string str)
+{
+    try
+    {
+        nlohmann::json response = nlohmann::json::parse(str);
+        dlg->roomId = response["id"];
+        std::vector<MessageData> resultList;
+        if (response.contains("messages") && response["messages"].is_array())
+        {
+            for (const auto& messages : response["messages"])
+            {
+                MessageData data;
+                data.name = convertString(messages.value("name", ""));
+                data.message = convertString(messages.value("message", ""));
+                data.timestamp = convertString(messages.value("timestamp", ""));
+                resultList.push_back(data);
+            }
+        }
+
+        int count = static_cast<int>(resultList.size());
+        MessageData* result = new MessageData[count];
+
+        for (int i = 0; i < count; ++i)
+        {
+            result[i] = resultList[i];
+        }
+        ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_MESSAGE_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+void ChatManager::sendMessage(int id, CString message, CString timestamp)
+{
+    nlohmann::json j;
+    j["type"] = "send_message";
+    j["id"] = id;
+    j["message"] = convertString(message);
+    j["timestamp"] = convertString(timestamp);
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+    dlg->SendChatMessage(message, timestamp);
 }
 
 void ChatManager::receiveMessage(std::string str)
@@ -395,9 +448,15 @@ void ChatManager::receiveMessage(std::string str)
     try 
     {
         nlohmann::json response = nlohmann::json::parse(str);
-        CString* time = new CString(convertString(response["time"]));
-        CString* chat = new CString(convertString(response["chat"]));
-        ::PostMessage(dlg->GetSafeHwnd(), WM_MESSAGE_RECEIVED, reinterpret_cast<LPARAM>(time), reinterpret_cast<LPARAM>(chat));
+        int id = response["id"];
+        if (dlg->roomId == id)
+        {
+            MessageData* result = new MessageData;
+            result->name = convertString(response["name"]);
+            result->message = convertString(response["message"]);
+            result->timestamp = convertString(response["timestamp"]);
+            ::PostMessage(dlg->GetSafeHwnd(), WM_MESSAGE_RECEIVED, (WPARAM)0, reinterpret_cast<LPARAM>(result));
+        }
     }
     catch (const std::exception& e)
     {
@@ -451,10 +510,6 @@ void ChatManager::receive()
             {
                 loginAccountAct(message);
             }
-            else if (response.contains("type") && response["type"] == "message")
-            {
-                receiveMessage(message);
-            }
             else if (response.contains("type") && response["type"] == "search_user")
             {
                 searchUserAct(message);
@@ -482,6 +537,14 @@ void ChatManager::receive()
             else if (response.contains("type") && response["type"] == "search_room")
             {
                 searchRoomAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "search_message")
+            {
+                searchMessageAct(message);
+            }
+            else if (response.contains("type") && response["type"] == "send_message")
+            {
+                receiveMessage(message);
             }
         }
         catch (const std::exception& e)

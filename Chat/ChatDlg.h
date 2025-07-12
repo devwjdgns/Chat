@@ -16,6 +16,7 @@
 #define WM_SEARCH_FRIEND_ACTION (WM_USER + 104)
 #define WM_DELETE_ROOM_ACTION (WM_USER + 105)
 #define WM_SEARCH_ROOM_ACTION (WM_USER + 106)
+#define WM_SEARCH_MESSAGE_ACTION (WM_USER + 107)
 
 #define WM_MESSAGE_RECEIVED (WM_USER + 120)
 
@@ -24,6 +25,13 @@ enum PAGE_NAME
 	LOGIN = 0,
 	REGISTER,
 	MAINCHAT
+};
+
+struct MessageData
+{
+	CString name;
+	CString message;
+	CString timestamp;
 };
 
 class CFriendDlg;
@@ -73,6 +81,7 @@ protected:
 	afx_msg LRESULT OnCreateRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDeleteRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSearchRoomAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnSearchMessageAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnMessageReceived(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 
@@ -82,11 +91,14 @@ public:
 	void InitMainChatView();
 	void UpdateWindowStyle(BOOL resize, BOOL minsize, BOOL maxsize);
 
-	void SendChatMessage(CString time, CString chat);
-	void ReceiveChatMessage(CString time, CString chat);
+	void SendChatMessage(CString message, CString timestamp, BOOL update = TRUE);
+	void ReceiveChatMessage(CString name, CString message, CString timestamp, BOOL update = TRUE);
+
+public:
+	int roomId;
 
 private:
-	ULONG_PTR m_gdiplusToken;
+	ULONG_PTR gdiplusToken;
 	PaneWnd* loginView;
 	PaneWnd* registerView;
 	PaneWnd* mainChatView;

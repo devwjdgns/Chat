@@ -21,7 +21,7 @@ COLORREF ButtonWnd::GetBackgroundColor()
 	if ((focus && click && enable) || pressed)
 	{
 		COLORREF bg = ElementWnd::GetBackgroundColor();
-		return RGB(GetRValue(bg) * 0.8, GetGValue(bg) * 0.8, GetBValue(bg) * 0.8);
+		return RGB(GetRValue(bg) * 0.85, GetGValue(bg) * 0.85, GetBValue(bg) * 0.85);
 	}
 	else if (focus && enable)
 	{

@@ -2,6 +2,24 @@
 #include "framework.h"
 #include "utility.h"
 
+CString getCurrentDateTimeString()
+{
+	time_t now = time(nullptr);
+	struct tm localTime;
+	localtime_s(&localTime, &now);
+
+	CString strTime;
+	strTime.Format(_T("%04d-%02d-%02d %02d:%02d:%02d"),
+		localTime.tm_year + 1900,
+		localTime.tm_mon + 1,
+		localTime.tm_mday,
+		localTime.tm_hour,
+		localTime.tm_min,
+		localTime.tm_sec);
+
+	return strTime;
+}
+
 std::string convertString(const CString& str)
 {
 	int len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);

@@ -4,6 +4,7 @@
 #include <codecvt>
 #include <locale>
 
+CString getCurrentDateTimeString();
 
 std::string convertString(const CString& str);
 CString convertString(const std::string& str);

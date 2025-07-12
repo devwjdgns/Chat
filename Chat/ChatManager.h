@@ -41,7 +41,11 @@ public:
 	void searchRoom();
 	void searchRoomAct(std::string str);
 
-	void sendMessage(CString time, CString chat);
+	void searchMessage(int id);
+	void searchMessage(CString account);
+	void searchMessageAct(std::string str);
+
+	void sendMessage(int id, CString message, CString timestamp);
 	void receiveMessage(std::string str);
 	
 	void receive();

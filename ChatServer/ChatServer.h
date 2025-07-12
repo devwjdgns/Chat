@@ -20,5 +20,4 @@ private:
 
     void acceptClients();
     void handleClient(ClientSession* client);
-    void broadcast(const nlohmann::json& message, SOCKET excludeSocket);
 };

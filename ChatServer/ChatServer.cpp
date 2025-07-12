@@ -177,12 +177,57 @@ void ChatServer::handleClient(ClientSession* client)
             }
             client->sendJson(response);
         }
-        else
+        else if (type == "send_message")
         {
-            broadcast(j, client->getSocket());
+            std::vector<int> members;
+            bool ret = dataManager.createMessage(client->getID(), j["id"], j["message"], j["timestamp"]);
+            members = dataManager.getMembersID(j["id"]);
+            members.erase(std::remove(members.begin(), members.end(), client->getID()), members.end());
+
+            std::lock_guard<std::mutex> lock(clientsMutex);
+            for (auto c : clients)
+            {
+                auto it = std::find(members.begin(), members.end(), c->getID());
+                if (it != members.end()) {
+                    c->sendJson(j);
+                }
+            }
+        }
+        else if (type == "search_message")
+        {
+            std::vector<std::string> names;
+            std::vector<std::string> messages;
+            std::vector<std::string> timestamps;
+            int id = -1;
+            if (j.contains("id"))
+            {
+                id = j["id"];
+            }
+            else if (j.contains("account"))
+            {
+                id = dataManager.getRoomID(client->getID(), dataManager.getUserID(j["account"]));
+                if (id == -1)
+                {
+                    dataManager.createRoom("", { client->getID(), dataManager.getUserID(j["account"]) }, id);
+                }
+            }
+            bool ret = dataManager.searchMessage(client->getID(), id, names, messages, timestamps);
+
+            nlohmann::json response;
+            response["type"] = "search_message";
+            response["id"] = id;
+            response["messages"] = nlohmann::json::array();
+            for (int i = 0; i < names.size(); i++)
+            {
+                response["messages"].push_back({
+                    {"name", names[i]},
+                    {"message", messages[i]},
+                    {"timestamp", timestamps[i]}
+                    });
+            }
+            client->sendJson(response);
         }
     }
-
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         clients.erase(std::remove_if(clients.begin(), clients.end(),
@@ -194,16 +239,4 @@ void ChatServer::handleClient(ClientSession* client)
 
     delete client;
     std::cout << "Client disconnected.\n";
-}
-
-void ChatServer::broadcast(const nlohmann::json& message, SOCKET excludeSocket) 
-{
-    std::lock_guard<std::mutex> lock(clientsMutex);
-    for (auto client : clients)
-    {
-        if (client->getSocket() != excludeSocket)
-        {
-            client->sendJson(message);
-        }
-    }
 }
