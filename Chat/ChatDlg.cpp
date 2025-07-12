@@ -257,28 +257,17 @@ void CChatDlg::OnSize(UINT nType, int cx, int cy)
 	}
 	if (mainChatView && ::IsWindow(mainChatView->GetSafeHwnd()))
 	{
-		mainChatView->MoveWindow(0, 0, cx, cy);
-
 		PaneWnd* mainView = (PaneWnd*)mainChatView->GetElement(1);
 		PaneWnd* message = NULL;
 		ItemWnd* text = NULL;
 		int cnt = ((ScrollWnd*)mainView->GetElement(0))->GetElementCount();
-		CRect rect;
-		((ScrollWnd*)mainView->GetElement(0))->GetClientRect(&rect);
 		for (int i = 0; i < cnt; i++)
 		{
 			message = (PaneWnd*)((ScrollWnd*)mainView->GetElement(0))->GetElement(i);
-			if (message->GetElement(0)->GetName().Compare(_T("TEXT")) == 0)
-			{
-				text = (ItemWnd*)message->GetElement(0);
-				text->SetSize(min(max(200, rect.Width() * 0.6), text->GetTextWidth()));
-			}
-			if (message->GetElement(1)->GetName().Compare(_T("TEXT")) == 0)
-			{
-				text = (ItemWnd*)message->GetElement(1);
-				text->SetSize(min(max(200, rect.Width() * 0.6), text->GetTextWidth()));
-			}
+			text = (ItemWnd*)message->GetElement(1);
+			text->SetSize(min(max(200, (cx - 400) * 0.6), text->GetTextWidth()));
 		}
+		mainChatView->MoveWindow(0, 0, cx, cy);
 	}
 }
 
@@ -895,7 +884,7 @@ void CChatDlg::SendChatMessage(CString message, CString timestamp, BOOL update)
 	messageWnd->AddElement(item);
 
 	CRect rect;
-	((ScrollWnd*)mainView->GetElement(0))->GetClientRect(&rect);
+	mainView->GetElement(0)->GetClientRect(&rect);
 	item->SetSize(min(max(200, rect.Width() * 0.6), item->GetTextWidth()));
 
 	if (update)
@@ -915,14 +904,14 @@ void CChatDlg::ReceiveChatMessage(CString name, CString message, CString timesta
 	PaneWnd* messageWnd = new PaneWnd(DIRECTION::HORIZONTAL, _T(""), -1);
 	((ScrollWnd*)mainView->GetElement(0))->AddElement(messageWnd);
 
-	messageWnd->AddElement(new PaneWnd(DIRECTION::VERTICAL, _T(""), 70));
-	((PaneWnd*)messageWnd->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(name.Left(1), TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::CENTER, _T("Segoe UI"), 12), SHAPESTRUCT(SHAPESTRUCT::SHAPE::CIRCLE, CRect(5, 0, 5, 5)), _T(""), 70, RGB(220, 220, 220)));
+	messageWnd->AddElement(new PaneWnd(DIRECTION::VERTICAL, _T(""), 60));
+	((PaneWnd*)messageWnd->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(name.Left(1), TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::CENTER, _T("Segoe UI"), 12), SHAPESTRUCT(SHAPESTRUCT::SHAPE::CIRCLE, CRect(5, 0, 5, 5)), _T(""), 60, RGB(220, 220, 220)));
 	ItemWnd* item = new ItemWnd(TEXTSTRUCT(message, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::LEFT), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 10, 0), 30), _T("TEXT"), 300, RGB(229, 239, 193));
 	messageWnd->AddElement(item);
 	messageWnd->AddElement(new ItemWnd(TEXTSTRUCT(timestamp, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::BOTTOM, TEXTSTRUCT::HALIGN::LEFT, _T("Segoe UI"), 8), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(-8, 16, 0, 0)), _T(""), -1));
 
 	CRect rect;
-	((ScrollWnd*)mainView->GetElement(0))->GetClientRect(&rect);
+	mainView->GetElement(0)->GetClientRect(&rect);
 	item->SetSize(min(max(200, rect.Width() * 0.6), item->GetTextWidth()));
 	
 	if (update)

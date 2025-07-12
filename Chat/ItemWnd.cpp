@@ -135,13 +135,17 @@ int ItemWnd::GetMinSize(DIRECTION d)
 				}
 				else
 				{
+					if (GetTextWidth() > width)
+					{
+						width -= text.fontsize * 4;
+					}
 					HWND hwnd = GetSafeHwnd();
 					HDC hdc = ::GetDC(hwnd);
 					Gdiplus::Graphics graphics(hdc);
 					Gdiplus::RectF layoutRect(0, 0, width, height);
 					graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 					::ReleaseDC(hwnd, hdc);
-					return boundingBox.Height + shape.margin.top + shape.margin.bottom;
+					return boundingBox.Height + shape.margin.top + shape.margin.bottom + text.fontsize * 2;
 				}
 			}
 			else if (d == DIRECTION::HORIZONTAL)
@@ -158,7 +162,7 @@ int ItemWnd::GetMinSize(DIRECTION d)
 					Gdiplus::RectF layoutRect(0, 0, width, height);
 					graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 					::ReleaseDC(hwnd, hdc);
-					return boundingBox.Width + shape.margin.left + shape.margin.right;
+					return boundingBox.Width + shape.margin.left + shape.margin.right + text.fontsize * 2;
 				}
 			}
 		}
@@ -174,13 +178,17 @@ int ItemWnd::GetMinSize(DIRECTION d)
 				}
 				else
 				{
+					if (GetTextWidth() > width)
+					{
+						width -= text.fontsize * 4;
+					}
 					HWND hwnd = GetSafeHwnd();
 					HDC hdc = ::GetDC(hwnd);
 					Gdiplus::Graphics graphics(hdc);
 					Gdiplus::RectF layoutRect(0, 0, width, height);
 					graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 					::ReleaseDC(hwnd, hdc);
-					return boundingBox.Width + shape.margin.left + shape.margin.right;
+					return boundingBox.Width + shape.margin.left + shape.margin.right + text.fontsize * 2;
 				}
 			}
 			else if (d == DIRECTION::VERTICAL)
@@ -197,7 +205,7 @@ int ItemWnd::GetMinSize(DIRECTION d)
 					Gdiplus::RectF layoutRect(0, 0, width, height);
 					graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 					::ReleaseDC(hwnd, hdc);
-					return boundingBox.Height + shape.margin.top + shape.margin.bottom;
+					return boundingBox.Height + shape.margin.top + shape.margin.bottom + text.fontsize * 2;
 				}
 			}
 		}
@@ -210,8 +218,7 @@ int ItemWnd::GetTextWidth()
 	ContainerWnd* pParent = dynamic_cast<ContainerWnd*>(GetParent());
 	if (pParent != NULL)
 	{
-		CRect rect;
-		pParent->GetClientRect(&rect);
+		int margin = 0;
 		Gdiplus::StringFormat format;
 		switch (text.valign)
 		{
@@ -231,12 +238,14 @@ int ItemWnd::GetTextWidth()
 		{
 		case TEXTSTRUCT::HALIGN::LEFT:
 			format.SetAlignment(Gdiplus::StringAlignmentNear);
+			margin = 8;
 			break;
 		case TEXTSTRUCT::HALIGN::CENTER:
 			format.SetAlignment(Gdiplus::StringAlignmentCenter);
 			break;
 		case TEXTSTRUCT::HALIGN::RIGHT:
 			format.SetAlignment(Gdiplus::StringAlignmentFar);
+			margin = 8;
 			break;
 		default:
 			break;
@@ -255,10 +264,6 @@ int ItemWnd::GetTextWidth()
 			break;
 		}
 		Gdiplus::Font font(text.font, text.fontsize, fontStyle);
-		rect.top += shape.margin.top;
-		rect.left += shape.margin.left;
-		rect.bottom -= shape.margin.bottom;
-		rect.right -= shape.margin.right;
 		Gdiplus::RectF boundingBox;
 		HWND hwnd = GetSafeHwnd();
 		HDC hdc = ::GetDC(hwnd);
@@ -266,7 +271,7 @@ int ItemWnd::GetTextWidth()
 		Gdiplus::RectF layoutRect(0, 0, 1000, 1000);
 		graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 		::ReleaseDC(hwnd, hdc);
-		return boundingBox.Width + shape.margin.left + shape.margin.right + text.fontsize*2;
+		return boundingBox.Width + shape.margin.left + shape.margin.right + text.fontsize*2 - margin;
 	}
 	return 0;
 }
@@ -276,19 +281,20 @@ int ItemWnd::GetTextHeight()
 	ContainerWnd* pParent = dynamic_cast<ContainerWnd*>(GetParent());
 	if (pParent != NULL)
 	{
-		CRect rect;
-		pParent->GetClientRect(&rect);
+		int margin = 0;
 		Gdiplus::StringFormat format;
 		switch (text.valign)
 		{
 		case TEXTSTRUCT::VALIGN::TOP:
 			format.SetLineAlignment(Gdiplus::StringAlignmentNear);
+			margin = 8;
 			break;
 		case TEXTSTRUCT::VALIGN::CENTER:
 			format.SetLineAlignment(Gdiplus::StringAlignmentCenter);
 			break;
 		case TEXTSTRUCT::VALIGN::BOTTOM:
 			format.SetLineAlignment(Gdiplus::StringAlignmentFar);
+			margin = 8;
 			break;
 		default:
 			break;
@@ -321,10 +327,6 @@ int ItemWnd::GetTextHeight()
 			break;
 		}
 		Gdiplus::Font font(text.font, text.fontsize, fontStyle);
-		rect.top += shape.margin.top;
-		rect.left += shape.margin.left;
-		rect.bottom -= shape.margin.bottom;
-		rect.right -= shape.margin.right;
 		Gdiplus::RectF boundingBox;
 		HWND hwnd = GetSafeHwnd();
 		HDC hdc = ::GetDC(hwnd);
@@ -332,7 +334,7 @@ int ItemWnd::GetTextHeight()
 		Gdiplus::RectF layoutRect(0, 0, 1000, 1000);
 		graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 		::ReleaseDC(hwnd, hdc);
-		return boundingBox.Height + shape.margin.top + shape.margin.bottom;
+		return boundingBox.Height + shape.margin.top + shape.margin.bottom - margin;
 	}
 	return 0;
 }
@@ -462,10 +464,10 @@ void ItemWnd::PaintText(Gdiplus::Graphics* gdc, CRect rect)
 	switch (text.style)
 	{
 	case TEXTSTRUCT::STYLE::BOLD:
-		fontStyle != Gdiplus::FontStyleBold;
+		fontStyle |= Gdiplus::FontStyleBold;
 		break;
 	case TEXTSTRUCT::STYLE::ITALIC:
-		fontStyle != Gdiplus::FontStyleItalic;
+		fontStyle |= Gdiplus::FontStyleItalic;
 		break;
 	default:
 		break;

@@ -130,9 +130,19 @@ int ContainerWnd::GetMinSize(DIRECTION d)
 			{
 				int width = 0;
 				int cnt = elements.size();
-				for (int i = 0; i < cnt; i++)
+				if (GetDirection() == DIRECTION::HORIZONTAL)
 				{
-					width += elements[i]->GetMinSize(d);
+					for (int i = 0; i < cnt; i++)
+					{
+						width += elements[i]->GetMinSize(d);
+					}
+				}
+				else if (GetDirection() == DIRECTION::VERTICAL)
+				{
+					for (int i = 0; i < cnt; i++)
+					{
+						width = max(width, elements[i]->GetMinSize(d));
+					}
 				}
 				return width;
 			}
@@ -155,9 +165,19 @@ int ContainerWnd::GetMinSize(DIRECTION d)
 			{
 				int height = 0;
 				int cnt = elements.size();
-				for (int i = 0; i < cnt; i++)
+				if (GetDirection() == DIRECTION::HORIZONTAL)
 				{
-					height += elements[i]->GetMinSize(d);
+					for (int i = 0; i < cnt; i++)
+					{
+						height = max(height, elements[i]->GetMinSize(d));
+					}
+				}
+				else if (GetDirection() == DIRECTION::VERTICAL)
+				{
+					for (int i = 0; i < cnt; i++)
+					{
+						height += elements[i]->GetMinSize(d);
+					}
 				}
 				return height;
 			}
