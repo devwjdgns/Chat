@@ -129,24 +129,39 @@ LRESULT CRoomDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 		}
 		else if (str.Compare(_T("CREATE")) == 0)
 		{
-			EditWnd* pEdit = dynamic_cast<EditWnd*>(mainView->GetElement(1));
-			if (pEdit && pEdit->GetItemText().IsEmpty())
-			{
-				MessageBox(_T("Enter room name."), _T("Notice"), MB_OK | MB_ICONINFORMATION);
-				return 0;
-			}
 			ButtonWnd* pBtn = dynamic_cast<ButtonWnd*>(mainView->FindElement(_T("CREATE")));
 			if (pBtn && pBtn->GetEnableStatus() == TRUE)
 			{
+				CString fullname;
 				CArray<CString, CString> friends;
 				for (int i = 0; i < friendList.GetCount(); i++)
 				{
 					if (sel.GetAt(i) == TRUE)
 					{
+						fullname = friendList.GetAt(i);
 						friends.Add(trimFromAffix(friendList.GetAt(i), _T("("), _T(")")));
 					}
 				}
-				chatManager->createRoom(pEdit->GetItemText(), friends);
+				if (friends.GetCount() == 1)
+				{
+					::SendMessage(GetParent()->GetSafeHwnd(), WM_OPEN_FRIEND_ACTION, (LPARAM)(LPCTSTR)fullname, 0);
+					EndModalLoop(IDOK);
+				}
+				else
+				{
+					EditWnd* pEdit = dynamic_cast<EditWnd*>(mainView->GetElement(1));
+					if (pEdit && pEdit->GetItemText().IsEmpty())
+					{
+						MessageBox(_T("Enter room name."), _T("Notice"), MB_OK | MB_ICONINFORMATION);
+						return 0;
+					}
+					chatManager->createRoom(pEdit->GetItemText(), friends);
+				}
+			}
+			else
+			{
+				MessageBox(_T("Select room members."), _T("Notice"), MB_OK | MB_ICONINFORMATION);
+				return 0;
 			}
 		}
 		else if (str.Compare(_T("CLOSE")) == 0)

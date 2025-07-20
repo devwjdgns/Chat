@@ -5,7 +5,8 @@
 #include "ButtonWnd.h"
 #include "EditWnd.h"
 
-#define WM_CREATE_ROOM_ACTION (WM_USER + 301)
+#define WM_OPEN_FRIEND_ACTION (WM_USER + 301)
+#define WM_CREATE_ROOM_ACTION (WM_USER + 302)
 
 class ChatManager;
 

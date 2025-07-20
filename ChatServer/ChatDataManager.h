@@ -33,6 +33,8 @@ public:
 	int getUserID(const std::string& account);
 	int getRoomID(const int& client_id, const int& friend_id);
 	std::vector<int> getMembersID(const int& room_id);
+	std::string getUserName(const int& client_id);
+
 private:
 	sqlite3* db;
 	std::mutex db_mutex;

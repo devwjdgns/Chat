@@ -78,6 +78,7 @@ protected:
 	afx_msg LRESULT OnAddFriendAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDeleteFriendAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSearchFriendAction(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnOpenFriendAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnCreateRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnDeleteRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSearchRoomAction(WPARAM wParam, LPARAM lParam);

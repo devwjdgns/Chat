@@ -232,6 +232,18 @@ bool ChatDataManager::createFriend(const int& client_id, const int& friend_id)
         return false;
     }
 
+    sqlite3_reset(stmt);
+
+    sqlite3_bind_int(stmt, 1, friend_id);
+    sqlite3_bind_int(stmt, 2, client_id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        std::cerr << "Insert failed\n";
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
     sqlite3_finalize(stmt);
     return true;
 }
@@ -250,6 +262,18 @@ bool ChatDataManager::deleteFriend(const int& client_id, const int& friend_id)
 
     sqlite3_bind_int(stmt, 1, client_id);
     sqlite3_bind_int(stmt, 2, friend_id);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        std::cerr << "Insert failed\n";
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_reset(stmt);
+
+    sqlite3_bind_int(stmt, 1, friend_id);
+    sqlite3_bind_int(stmt, 2, client_id);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
@@ -607,4 +631,32 @@ std::vector<int> ChatDataManager::getMembersID(const int& room_id)
 
     sqlite3_finalize(stmt);
     return members;
+}
+
+std::string ChatDataManager::getUserName(const int& client_id)
+{
+    std::lock_guard<std::mutex> lock(db_mutex);
+    const char* SQL = "SELECT name FROM users WHERE id = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, SQL, -1, &stmt, nullptr) != SQLITE_OK)
+    {
+        std::cerr << "Prepare failed\n";
+        return "";
+    }
+
+    sqlite3_bind_int(stmt, 1, client_id);
+
+    std::string result;
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        const unsigned char* name = sqlite3_column_text(stmt, 0);
+
+        if (name)
+        {
+            result = reinterpret_cast<const char*>(name);
+        }
+    }
+    sqlite3_finalize(stmt);
+    return result;
 }

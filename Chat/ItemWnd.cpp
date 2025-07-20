@@ -75,17 +75,21 @@ int ItemWnd::GetMinSize(DIRECTION d)
 	{
 		CRect rect;
 		pParent->GetClientRect(&rect);
+
+		int margin = 0;
 		Gdiplus::StringFormat format;
 		switch (text.valign)
 		{
 		case TEXTSTRUCT::VALIGN::TOP:
 			format.SetLineAlignment(Gdiplus::StringAlignmentNear);
+			margin = 8;
 			break;
 		case TEXTSTRUCT::VALIGN::CENTER:
 			format.SetLineAlignment(Gdiplus::StringAlignmentCenter);
 			break;
 		case TEXTSTRUCT::VALIGN::BOTTOM:
 			format.SetLineAlignment(Gdiplus::StringAlignmentFar);
+			margin = 8;
 			break;
 		default:
 			break;
@@ -94,12 +98,14 @@ int ItemWnd::GetMinSize(DIRECTION d)
 		{
 		case TEXTSTRUCT::HALIGN::LEFT:
 			format.SetAlignment(Gdiplus::StringAlignmentNear);
+			margin = 8;
 			break;
 		case TEXTSTRUCT::HALIGN::CENTER:
 			format.SetAlignment(Gdiplus::StringAlignmentCenter);
 			break;
 		case TEXTSTRUCT::HALIGN::RIGHT:
 			format.SetAlignment(Gdiplus::StringAlignmentFar);
+			margin = 8;
 			break;
 		default:
 			break;
@@ -137,12 +143,12 @@ int ItemWnd::GetMinSize(DIRECTION d)
 				{
 					if (GetTextWidth() > width)
 					{
-						width -= text.fontsize * 4;
+						width -= text.fontsize * 2 + margin;
 					}
 					HWND hwnd = GetSafeHwnd();
 					HDC hdc = ::GetDC(hwnd);
 					Gdiplus::Graphics graphics(hdc);
-					Gdiplus::RectF layoutRect(0, 0, width, height);
+					Gdiplus::RectF layoutRect(0, 0, width, 1000);
 					graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 					::ReleaseDC(hwnd, hdc);
 					return boundingBox.Height + shape.margin.top + shape.margin.bottom + text.fontsize * 2;
@@ -180,12 +186,12 @@ int ItemWnd::GetMinSize(DIRECTION d)
 				{
 					if (GetTextWidth() > width)
 					{
-						width -= text.fontsize * 4;
+						width -= text.fontsize * 2 + margin;
 					}
 					HWND hwnd = GetSafeHwnd();
 					HDC hdc = ::GetDC(hwnd);
 					Gdiplus::Graphics graphics(hdc);
-					Gdiplus::RectF layoutRect(0, 0, width, height);
+					Gdiplus::RectF layoutRect(0, 0, 1000, height);
 					graphics.MeasureString(GetItemText(), -1, &font, layoutRect, &format, &boundingBox);
 					::ReleaseDC(hwnd, hdc);
 					return boundingBox.Width + shape.margin.left + shape.margin.right + text.fontsize * 2;

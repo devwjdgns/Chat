@@ -108,6 +108,29 @@ void ChatServer::handleClient(ClientSession* client)
             response["type"] = "add_friend";
             response["status"] = ret;
             client->sendJson(response);
+
+            std::lock_guard<std::mutex> lock(clientsMutex);
+            for (auto c : clients)
+            {
+                if (c->getID() == id)
+                {
+                    std::vector<std::string> accounts;
+                    std::vector<std::string> names;
+                    bool ret = dataManager.searchFriend(c->getID(), accounts, names);
+                    nlohmann::json response;
+                    response["type"] = "search_friend";
+                    response["friends"] = nlohmann::json::array();
+                    for (int i = 0; i < accounts.size(); i++)
+                    {
+                        response["friends"].push_back({
+                            {"account", accounts[i]},
+                            {"name", names[i]}
+                            });
+                    }
+                    c->sendJson(response);
+                    break;
+                }
+            }
         }
         else if (type == "delete_friend")
         {
@@ -117,6 +140,29 @@ void ChatServer::handleClient(ClientSession* client)
             response["type"] = "delete_friend";
             response["status"] = ret;
             client->sendJson(response);
+
+            std::lock_guard<std::mutex> lock(clientsMutex);
+            for (auto c : clients)
+            {
+                if (c->getID() == id)
+                {
+                    std::vector<std::string> accounts;
+                    std::vector<std::string> names;
+                    bool ret = dataManager.searchFriend(c->getID(), accounts, names);
+                    nlohmann::json response;
+                    response["type"] = "search_friend";
+                    response["friends"] = nlohmann::json::array();
+                    for (int i = 0; i < accounts.size(); i++)
+                    {
+                        response["friends"].push_back({
+                            {"account", accounts[i]},
+                            {"name", names[i]}
+                            });
+                    }
+                    c->sendJson(response);
+                    break;
+                }
+            }
         }
         else if (type == "search_friend")
         {
@@ -151,6 +197,30 @@ void ChatServer::handleClient(ClientSession* client)
             response["id"] = id;
             response["status"] = ret;
             client->sendJson(response);
+            members.erase(std::remove(members.begin(), members.end(), client->getID()), members.end());
+
+            std::lock_guard<std::mutex> lock(clientsMutex);
+            for (auto c : clients)
+            {
+                auto it = std::find(members.begin(), members.end(), c->getID());
+                if (it != members.end())
+                {
+                    std::vector<int> ids;
+                    std::vector<std::string> names;
+                    bool ret = dataManager.searchRoom(c->getID(), ids, names);
+                    nlohmann::json response;
+                    response["type"] = "search_room";
+                    response["rooms"] = nlohmann::json::array();
+                    for (int i = 0; i < ids.size(); i++)
+                    {
+                        response["rooms"].push_back({
+                            {"id", ids[i]},
+                            {"name", names[i]}
+                            });
+                    }
+                    c->sendJson(response);
+                }
+            }
         }
         else if (type == "delete_room")
         {
@@ -179,6 +249,7 @@ void ChatServer::handleClient(ClientSession* client)
         }
         else if (type == "send_message")
         {
+            j["name"] = dataManager.getUserName(client->getID());
             std::vector<int> members;
             bool ret = dataManager.createMessage(client->getID(), j["id"], j["message"], j["timestamp"]);
             members = dataManager.getMembersID(j["id"]);
@@ -188,7 +259,8 @@ void ChatServer::handleClient(ClientSession* client)
             for (auto c : clients)
             {
                 auto it = std::find(members.begin(), members.end(), c->getID());
-                if (it != members.end()) {
+                if (it != members.end()) 
+                {
                     c->sendJson(j);
                 }
             }

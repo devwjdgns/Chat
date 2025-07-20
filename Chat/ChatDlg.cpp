@@ -185,6 +185,7 @@ BEGIN_MESSAGE_MAP(CChatDlg, CDialogEx)
 	ON_MESSAGE(WM_ADD_FRIEND_ACTION, &CChatDlg::OnAddFriendAction)
 	ON_MESSAGE(WM_DELETE_FRIEND_ACTION, &CChatDlg::OnDeleteFriendAction)
 	ON_MESSAGE(WM_SEARCH_FRIEND_ACTION, &CChatDlg::OnSearchFriendAction)
+	ON_MESSAGE(WM_OPEN_FRIEND_ACTION, &CChatDlg::OnOpenFriendAction)
 	ON_MESSAGE(WM_CREATE_ROOM_ACTION, &CChatDlg::OnCreateRoomAction)
 	ON_MESSAGE(WM_DELETE_ROOM_ACTION, &CChatDlg::OnDeleteRoomAction)
 	ON_MESSAGE(WM_SEARCH_ROOM_ACTION, &CChatDlg::OnSearchRoomAction)
@@ -665,6 +666,27 @@ LRESULT CChatDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+LRESULT CChatDlg::OnOpenFriendAction(WPARAM wParam, LPARAM lParam)
+{
+	LPCTSTR pId = (LPCTSTR)wParam;
+	CString id(pId);
+
+	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+
+	int cnt = ((ScrollWnd*)sideView->GetElement(1))->GetElementCount();
+	for (int i = 0; i < cnt; i++)
+	{
+		ButtonWnd* pBtn = (ButtonWnd*)((ScrollWnd*)sideView->GetElement(1))->GetElement(i);
+		CString text = pBtn->GetItemText();
+		if (text.Compare(id) == 0)
+		{
+			OnButtonClick((WPARAM)new CString(pBtn->GetName()), 0);
+			return 0;
+		}
+	}
+	return 0;
+}
+
 LRESULT CChatDlg::OnCreateRoomAction(WPARAM wParam, LPARAM lParam)
 {
 	LPCTSTR pId = (LPCTSTR)wParam;
@@ -684,7 +706,7 @@ LRESULT CChatDlg::OnCreateRoomAction(WPARAM wParam, LPARAM lParam)
 	((ScrollWnd*)sideView->GetElement(3))->GetClientRect(rect);
 	((ScrollWnd*)sideView->GetElement(3))->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
 
-	OnButtonClick(0, (WPARAM)new CString(name));
+	OnButtonClick((WPARAM)new CString(name), 0);
 	return 0;
 }
 
@@ -740,8 +762,6 @@ LRESULT CChatDlg::OnSearchMessageAction(WPARAM wParam, LPARAM lParam)
 
 	int count = (int)wParam;
 	MessageData* result = reinterpret_cast<MessageData*>(lParam);
-	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
-	((ScrollWnd*)sideView->GetElement(3))->ClearElement();
 	for (int i = 0; i < count; ++i)
 	{
 		if (result[i].name.IsEmpty())
