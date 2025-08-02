@@ -83,6 +83,10 @@ void ChatServer::handleClient(ClientSession* client)
             }
             client->sendJson(response);
         }
+        else if (type == "logout")
+        {
+            client->setID(-1);
+        }
         else if (type == "search_user")
         {
             std::vector<std::string> accounts;

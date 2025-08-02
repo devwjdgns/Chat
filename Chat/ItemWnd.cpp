@@ -60,6 +60,9 @@ void ItemWnd::PaintExtern(CDC* pdc, CRect rect)
     case SHAPESTRUCT::SHAPE::PLUS:
         PaintPlus(&graphics, rect);
         break;
+	case SHAPESTRUCT::SHAPE::LINE:
+		PaintLine(&graphics, rect);
+		break;
     default:
         break;
     }
@@ -413,6 +416,9 @@ void ItemWnd::OnPaint()
 	case SHAPESTRUCT::SHAPE::PLUS:
 		PaintPlus(&graphics, rect);
 		break;
+	case SHAPESTRUCT::SHAPE::LINE:
+		PaintLine(&graphics, rect);
+		break;
 	default:
 		break;
 	}
@@ -601,4 +607,12 @@ void ItemWnd::PaintPlus(Gdiplus::Graphics* gdc, CRect rect)
 
 	gdc->DrawLine(&pen, v1, v2);
 	gdc->DrawLine(&pen, h1, h2);
+}
+
+void ItemWnd::PaintLine(Gdiplus::Graphics* gdc, CRect rect)
+{
+	COLORREF ol = GetOutlineColor();
+	Gdiplus::Pen pen(Gdiplus::Color(GetRValue(ol), GetGValue(ol), GetBValue(ol)), 1);
+
+	gdc->DrawLine(&pen, Gdiplus::PointF(rect.left, (rect.top + rect.bottom) / 2), Gdiplus::PointF(rect.right, (rect.top + rect.bottom) / 2));
 }

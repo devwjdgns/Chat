@@ -36,6 +36,10 @@ public:
 	ELETYPE GetType() { return type; }
 	CString GetName() { return name; }
 	int GetSize() { return size; }
+
+	void ShowWindowExtern(BOOL b) { show = b; }
+	BOOL IsShowWindowExtern() { return show; }
+
 	virtual COLORREF GetBackgroundColor();
 	virtual COLORREF GetOutlineColor();
 
@@ -52,4 +56,7 @@ protected:
 	int size;
 	COLORREF bgcolor;
 	COLORREF olcolor;
+
+private:
+	BOOL show;
 };

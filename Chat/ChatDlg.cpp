@@ -68,6 +68,7 @@ CChatDlg::CChatDlg(CWnd* pParent /*=nullptr*/)
 	roomDlg = new CRoomDlg(chatManager);
 	gdiplusToken = 0;
 	roomId = -1;
+	setlocale(LC_TIME, "ko-KR");
 }
 
 CChatDlg::~CChatDlg()
@@ -264,7 +265,9 @@ void CChatDlg::OnSize(UINT nType, int cx, int cy)
 		int cnt = ((ScrollWnd*)mainView->GetElement(0))->GetElementCount();
 		for (int i = 0; i < cnt; i++)
 		{
-			message = (PaneWnd*)((ScrollWnd*)mainView->GetElement(0))->GetElement(i);
+			message = dynamic_cast<PaneWnd*>(((ScrollWnd*)mainView->GetElement(0))->GetElement(i));
+			if (message == NULL) continue;
+
 			text = (ItemWnd*)message->GetElement(1);
 			text->SetSize(min(max(200, (cx - 400) * 0.6), text->GetTextWidth()));
 		}
@@ -350,6 +353,7 @@ LRESULT CChatDlg::OnButtonMenu(WPARAM wParam, LPARAM lParam)
 				PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
 				ButtonWnd* pBtn = (ButtonWnd*)((ScrollWnd*)sideView->GetElement(1))->GetElement(g_nDeleteFriend);
 				chatManager->deleteFriend(trimFromAffix(pBtn->GetItemText(), _T("("), _T(")")));
+				ClearMainChatView();
 			}
 		}
 		else if (str.Find(_T("ROOM")) >= 0)
@@ -358,6 +362,7 @@ LRESULT CChatDlg::OnButtonMenu(WPARAM wParam, LPARAM lParam)
 			{
 				g_nDeleteRoom = _ttoi(trimFromAffix(str, _T("ROOM"), _T("^")));
 				chatManager->deleteRoom(_ttoi(trimFromAffix(str, _T("("), _T(")"))));
+				ClearMainChatView();
 			}
 		}
 	}
@@ -387,6 +392,12 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				return 0;
 			}
 			chatManager->loginAccount(account, password);
+		}
+		else if (str.Compare(_T("LOGOUT")) == 0)
+		{
+			MovePage(PAGE_NAME::LOGIN);
+			chatManager->logoutAccount();
+			ClearMainChatView();
 		}
 		else if (str.Compare(_T("MOVEREGISTER")) == 0)
 		{
@@ -489,6 +500,9 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 			pBtn->SetPressedStatus(TRUE);
 			pBtn->Invalidate();
 
+			mainChatView->FindElement(_T("MESSAGE"))->ShowWindow(SW_SHOW);
+			mainChatView->FindElement(_T("SENDMESSAGE"))->ShowWindow(SW_SHOW);
+
 			CString account = trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"));
 			chatManager->searchMessage(account);
 		}
@@ -514,6 +528,10 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 			pBtn = (ButtonWnd*)((ScrollWnd*)sideView->GetElement(3))->GetElement(g_nSelectRoom);
 			pBtn->SetPressedStatus(TRUE);
 			pBtn->Invalidate();
+
+			mainChatView->FindElement(_T("MESSAGE"))->ShowWindow(SW_SHOW);
+			mainChatView->FindElement(_T("SENDMESSAGE"))->ShowWindow(SW_SHOW);
+
 			chatManager->searchMessage(_ttoi(trimFromAffix(str, _T("("), _T(")"))));
 		}
 		else if (str.Compare(_T("SENDMESSAGE")) == 0)
@@ -629,6 +647,7 @@ LRESULT CChatDlg::OnDeleteFriendAction(WPARAM wParam, LPARAM lParam)
 	{
 		PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
 		((ScrollWnd*)sideView->GetElement(1))->DeleteElement(g_nDeleteFriend);
+		if(g_nDeleteFriend == g_nSelectFriend) g_nSelectFriend = -1;
 		g_nDeleteFriend = -1;
 
 		CRect rect;
@@ -648,7 +667,13 @@ LRESULT CChatDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
 	int count = (int)wParam;
 	CString* result = reinterpret_cast<CString*>(lParam);
 	PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
+	CString selFriendName;
+	if (g_nSelectFriend >= 0)
+	{
+		selFriendName = ((ItemWnd*)((ScrollWnd*)sideView->GetElement(1))->GetElement(g_nSelectFriend))->GetItemText();
+	}
 	((ScrollWnd*)sideView->GetElement(1))->ClearElement();
+	BOOL selFriend = FALSE;
 	for (int i = 0; i < count; ++i)
 	{
 		CString name;
@@ -656,6 +681,16 @@ LRESULT CChatDlg::OnSearchFriendAction(WPARAM wParam, LPARAM lParam)
 		ButtonWnd* pBtn = new ButtonWnd(TEXTSTRUCT(result[i]), SHAPESTRUCT(), name, 70);
 		pBtn->AddContextMenu(_T("Delete"));
 		((ScrollWnd*)sideView->GetElement(1))->AddElement(pBtn);
+		if (selFriendName.Compare(result[i]) == 0)
+		{
+			g_nSelectFriend = i;
+			pBtn->SetPressedStatus(TRUE);
+			selFriend = TRUE;
+		}
+	}
+	if (!selFriend)
+	{
+		ClearMainChatView();
 	}
 	delete[] result;
 
@@ -717,6 +752,7 @@ LRESULT CChatDlg::OnDeleteRoomAction(WPARAM wParam, LPARAM lParam)
 	{
 		PaneWnd* sideView = (PaneWnd*)mainChatView->GetElement(0);
 		((ScrollWnd*)sideView->GetElement(3))->DeleteElement(g_nDeleteRoom);
+		if (g_nDeleteRoom == g_nSelectRoom) g_nSelectRoom = -1;
 		g_nDeleteRoom = -1;
 
 		CRect rect;
@@ -759,6 +795,7 @@ LRESULT CChatDlg::OnSearchMessageAction(WPARAM wParam, LPARAM lParam)
 {
 	PaneWnd* mainView = (PaneWnd*)mainChatView->GetElement(1);
 	((ScrollWnd*)mainView->GetElement(0))->ClearElement();
+	messageDate.Empty();
 
 	int count = (int)wParam;
 	MessageData* result = reinterpret_cast<MessageData*>(lParam);
@@ -855,6 +892,7 @@ void CChatDlg::InitMainChatView()
 	((PaneWnd*)sideView->GetElement(2))->AddElement(new ItemWnd(TEXTSTRUCT(_T("Rooms"), TEXTSTRUCT::STYLE::BOLD, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::LEFT), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(10, 10, 10, 0)), _T(""), -1));
 	((PaneWnd*)sideView->GetElement(2))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::PLUS, CRect(10, 20, 20, 10)), _T("CREATEROOM"), 60, sideView->GetBackgroundColor(), 0));
 	sideView->AddElement(new ScrollWnd(DIRECTION::VERTICAL, _T("ROOMS"), -1));
+	sideView->AddElement(new ButtonWnd(TEXTSTRUCT(_T("Logout")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(20, 10, 20, 10), 12), _T("LOGOUT"), 70, RGB(232, 106, 106)));
 
 	ScrollWnd* chatWnd = new ScrollWnd(DIRECTION::VERTICAL, _T("CHAT"), -1);
 	chatWnd->UsePaintEx();
@@ -863,6 +901,29 @@ void CChatDlg::InitMainChatView()
 
 	((PaneWnd*)chatView->GetElement(1))->AddElement(new EditWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 10, 10), 10), _T("MESSAGE"), -1, RGB(255, 255, 255), RGB(125, 125, 125)));
 	((PaneWnd*)chatView->GetElement(1))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("Send"), TEXTSTRUCT::STYLE::BOLD), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(0, 10, 10, 10), 10), _T("SENDMESSAGE"), 80, RGB(86, 124, 131)));
+	mainChatView->FindElement(_T("MESSAGE"))->ShowWindow(SW_HIDE);
+	mainChatView->FindElement(_T("SENDMESSAGE"))->ShowWindow(SW_HIDE);
+}
+
+void CChatDlg::ClearMainChatView()
+{
+	g_nSelectFriend = -1;
+	g_nSelectRoom = -1;
+
+	messageDate.Empty();
+
+	PaneWnd* mainView = (PaneWnd*)mainChatView->GetElement(1);
+	((ScrollWnd*)mainView->GetElement(0))->ClearElement();
+	
+	CRect rect;
+	mainView->GetElement(0)->GetClientRect(&rect);
+	mainView->GetElement(0)->SetRedraw(FALSE);
+	mainView->GetElement(0)->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	mainView->GetElement(0)->SetRedraw(TRUE);
+	((ScrollWnd*)mainView->GetElement(0))->MoveToEnd();
+	
+	mainChatView->FindElement(_T("MESSAGE"))->ShowWindow(SW_HIDE);
+	mainChatView->FindElement(_T("SENDMESSAGE"))->ShowWindow(SW_HIDE);
 }
 
 void CChatDlg::UpdateWindowStyle(BOOL resize, BOOL minsize, BOOL maxsize)
@@ -892,23 +953,48 @@ void CChatDlg::UpdateWindowStyle(BOOL resize, BOOL minsize, BOOL maxsize)
 
 void CChatDlg::SendChatMessage(CString message, CString timestamp, BOOL update)
 {
-	timestamp = timestamp.Mid(11, 5);
+	CRect rect;
 	PaneWnd* mainView = (PaneWnd*)mainChatView->GetElement(1);
-	EditWnd* edit = (EditWnd*)mainView->FindElement(_T("MESSAGE"));
+	mainView->GetElement(0)->GetClientRect(&rect);
+	
+	if (timestamp.Left(10).Compare(messageDate) != 0)
+	{
+		CRect rect;
+		mainView->GetWindowRect(&rect);
+		messageDate = timestamp.Left(10);
+		((ScrollWnd*)mainView->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(), SHAPESTRUCT(SHAPESTRUCT::SHAPE::LINE, CRect(30, 15, 30, 0)), _T(""), 25, mainView->GetElement(0)->GetBackgroundColor(), RGB(120, 120, 120)));
+		
+		int year, month, day;
+		_stscanf_s(messageDate, _T("%d-%d-%d"), &year, &month, &day);
+		CTime date(year, month, day, 0, 0, 0);
 
-	PaneWnd* messageWnd = new PaneWnd(DIRECTION::HORIZONTAL, _T(""), -1);
+		CString dateFormat = date.Format(_T("%Y년 %m월 %d일 %A"));
+		((ScrollWnd*)mainView->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(dateFormat, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::CENTER, _T("Segoe UI"), 10, RGB(120, 120, 120)), SHAPESTRUCT(SHAPESTRUCT::SHAPE::LINE, CRect(0, 0, 0, 5)), _T(""), 25));
+	}
+
+	int messageCnt = ((ScrollWnd*)mainView->GetElement(0))->GetElementCount();
+	PaneWnd* prevMessageWnd = (PaneWnd*)((ScrollWnd*)mainView->GetElement(0))->GetElement(messageCnt - 1);
+	PaneWnd* messageWnd = new PaneWnd(DIRECTION::HORIZONTAL, _T("ONE"), -1);
 	((ScrollWnd*)mainView->GetElement(0))->AddElement(messageWnd);
-	messageWnd->AddElement(new ItemWnd(TEXTSTRUCT(timestamp, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::BOTTOM, TEXTSTRUCT::HALIGN::RIGHT, _T("Segoe UI"), 8), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(0, 16, -8, 0)), _T(""), -1));
+	messageWnd->AddElement(new ItemWnd(TEXTSTRUCT(timestamp.Mid(11, 5), TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::BOTTOM, TEXTSTRUCT::HALIGN::RIGHT, _T("Segoe UI"), 8), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(0, 16, -8, 0)), _T(""), -1));
 
 	ItemWnd* item = new ItemWnd(TEXTSTRUCT(message, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::LEFT), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 10, 0), 30), _T("TEXT"), 100, RGB(58, 174, 169));
 	messageWnd->AddElement(item);
-
-	CRect rect;
-	mainView->GetElement(0)->GetClientRect(&rect);
 	item->SetSize(min(max(200, rect.Width() * 0.6), item->GetTextWidth()));
+
+	CString prevName = prevMessageWnd->GetName();
+	if (prevName.Compare(_T("ONE")) == 0)
+	{
+		CString prevTimestamp = ((ItemWnd*)prevMessageWnd->GetElement(0))->GetItemText();
+		if (prevTimestamp.Compare(timestamp.Mid(11, 5)) == 0)
+		{
+			prevMessageWnd->GetElement(0)->ShowWindowExtern(FALSE);
+		}
+	}
 
 	if (update)
 	{
+		EditWnd* edit = (EditWnd*)mainView->FindElement(_T("MESSAGE"));
 		edit->ClearText();
 		mainView->GetElement(0)->SetRedraw(FALSE);
 		mainView->GetElement(0)->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
@@ -919,21 +1005,48 @@ void CChatDlg::SendChatMessage(CString message, CString timestamp, BOOL update)
 
 void CChatDlg::ReceiveChatMessage(CString name, CString message, CString timestamp, BOOL update)
 {
-	timestamp = timestamp.Mid(11, 5);
+	CRect rect;
 	PaneWnd* mainView = (PaneWnd*)mainChatView->GetElement(1);
-	PaneWnd* messageWnd = new PaneWnd(DIRECTION::HORIZONTAL, _T(""), -1);
+	mainView->GetElement(0)->GetClientRect(&rect);
+	
+	if (timestamp.Left(10).Compare(messageDate) != 0)
+	{
+		CRect rect;
+		mainView->GetWindowRect(&rect);
+		messageDate = timestamp.Left(10);
+		((ScrollWnd*)mainView->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(), SHAPESTRUCT(SHAPESTRUCT::SHAPE::LINE, CRect(30, 15, 30, 0)), _T(""), 25, mainView->GetElement(0)->GetBackgroundColor(), RGB(120, 120, 120)));
+
+		int year, month, day;
+		_stscanf_s(messageDate, _T("%d-%d-%d"), &year, &month, &day);
+		CTime date(year, month, day, 0, 0, 0);
+
+		CString dateFormat = date.Format(_T("%Y년 %m월 %d일 %A"));
+		((ScrollWnd*)mainView->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(dateFormat, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::CENTER, _T("Segoe UI"), 10, RGB(120, 120, 120)), SHAPESTRUCT(SHAPESTRUCT::SHAPE::LINE, CRect(0, 0, 0, 5)), _T(""), 25));
+	}
+
+	int messageCnt = ((ScrollWnd*)mainView->GetElement(0))->GetElementCount();
+	PaneWnd* prevMessageWnd = (PaneWnd*)((ScrollWnd*)mainView->GetElement(0))->GetElement(messageCnt - 1);
+	PaneWnd* messageWnd = new PaneWnd(DIRECTION::HORIZONTAL, name, -1);
 	((ScrollWnd*)mainView->GetElement(0))->AddElement(messageWnd);
 
 	messageWnd->AddElement(new PaneWnd(DIRECTION::VERTICAL, _T(""), 60));
 	((PaneWnd*)messageWnd->GetElement(0))->AddElement(new ItemWnd(TEXTSTRUCT(name.Left(1), TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::CENTER, _T("Segoe UI"), 12), SHAPESTRUCT(SHAPESTRUCT::SHAPE::CIRCLE, CRect(5, 0, 5, 5)), _T(""), 60, RGB(220, 220, 220)));
 	ItemWnd* item = new ItemWnd(TEXTSTRUCT(message, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::CENTER, TEXTSTRUCT::HALIGN::LEFT), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 10, 0), 30), _T("TEXT"), 300, RGB(229, 239, 193));
 	messageWnd->AddElement(item);
-	messageWnd->AddElement(new ItemWnd(TEXTSTRUCT(timestamp, TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::BOTTOM, TEXTSTRUCT::HALIGN::LEFT, _T("Segoe UI"), 8), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(-8, 16, 0, 0)), _T(""), -1));
-
-	CRect rect;
-	mainView->GetElement(0)->GetClientRect(&rect);
+	messageWnd->AddElement(new ItemWnd(TEXTSTRUCT(timestamp.Mid(11, 5), TEXTSTRUCT::STYLE::NORMAL, TEXTSTRUCT::VALIGN::BOTTOM, TEXTSTRUCT::HALIGN::LEFT, _T("Segoe UI"), 8), SHAPESTRUCT(SHAPESTRUCT::SHAPE::NONE, CRect(-8, 16, 0, 0)), _T(""), -1));
 	item->SetSize(min(max(200, rect.Width() * 0.6), item->GetTextWidth()));
 	
+	CString prevName = prevMessageWnd->GetName();
+	if (prevName.Compare(name) == 0)
+	{
+		messageWnd->GetElement(0)->ShowWindowExtern(FALSE);
+		CString prevTimestamp = ((ItemWnd*)prevMessageWnd->GetElement(2))->GetItemText();
+		if (prevTimestamp.Compare(timestamp.Mid(11, 5)) == 0)
+		{
+			prevMessageWnd->GetElement(2)->ShowWindowExtern(FALSE);
+		}
+	}
+
 	if (update)
 	{
 		mainView->GetElement(0)->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));

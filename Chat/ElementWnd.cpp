@@ -5,6 +5,7 @@
 ElementWnd::ElementWnd(CString name, int size, COLORREF bgcolor, COLORREF olcolor) : CWnd(), name(name), size(size), bgcolor(bgcolor), olcolor(olcolor)
 {
 	type = ELETYPE::NONE;
+	show = TRUE;
 }
 
 ElementWnd::~ElementWnd()

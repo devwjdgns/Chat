@@ -111,6 +111,14 @@ void ChatManager::loginAccountAct(std::string str)
     }
 }
 
+void ChatManager::logoutAccount()
+{
+    nlohmann::json j;
+    j["type"] = "logout";
+    std::string json = j.dump();
+    send(sock, json.c_str(), json.length(), 0);
+}
+
 void ChatManager::searchUser(CString account)
 {
     nlohmann::json j;

@@ -99,6 +99,7 @@ void ContainerWnd::PaintExtern(CDC* pdc, CRect rect)
 	int top = rect.top;
 	for (int i = 0; i < elements.size(); i++)
 	{
+		if (!elements[i]->IsShowWindowExtern()) continue;
 		elements[i]->GetWindowRect(&rect);
 		ScreenToClient(&rect);
 		rect.left += left; rect.right += left;

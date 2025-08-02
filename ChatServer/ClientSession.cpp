@@ -1,7 +1,7 @@
 #include "ClientSession.h"
 #include <iostream>
 
-ClientSession::ClientSession(SOCKET socket) : clientSocket(socket) {}
+ClientSession::ClientSession(SOCKET socket) : clientSocket(socket), clientID(-1) {}
 
 ClientSession::~ClientSession() 
 {

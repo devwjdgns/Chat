@@ -226,6 +226,7 @@ void ScrollWnd::OnPaint()
 		CRect childRect;
 		for (int i = 0; i < elements.size(); i++)
 		{
+			if (!elements[i]->IsShowWindowExtern()) continue;
 			elements[i]->GetWindowRect(&childRect);
 			ScreenToClient(&childRect);
 			elements[i]->PaintExtern(&memDC, childRect);

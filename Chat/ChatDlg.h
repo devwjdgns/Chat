@@ -90,6 +90,7 @@ public:
 	void InitLoginView();
 	void InitRegisterView();
 	void InitMainChatView();
+	void ClearMainChatView();
 	void UpdateWindowStyle(BOOL resize, BOOL minsize, BOOL maxsize);
 
 	void SendChatMessage(CString message, CString timestamp, BOOL update = TRUE);
@@ -99,13 +100,14 @@ public:
 	int roomId;
 
 private:
+	CString messageDate;
+
+private:
 	ULONG_PTR gdiplusToken;
 	PaneWnd* loginView;
 	PaneWnd* registerView;
 	PaneWnd* mainChatView;
 	ChatManager* chatManager;
-
-private:
 	CFriendDlg* friendDlg;
 	CRoomDlg* roomDlg;
 };

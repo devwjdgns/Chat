@@ -40,7 +40,8 @@ struct SHAPESTRUCT
 		CIRCLE = 1,
 		SQUARE = 2,
 		TRIANGLE = 3,
-		PLUS = 4
+		PLUS = 4,
+		LINE = 5
 	};
 	SHAPESTRUCT(SHAPE s = SHAPE::SQUARE, CRect m = CRect(0, 0, 0, 0), int r = 0, int a = 0)
 		: shape(s), margin(m), radius(r), angle(a) {}
@@ -80,6 +81,7 @@ private:
 	void PaintSquare(Gdiplus::Graphics* gdc, CRect rect);
 	void PaintTriangle(Gdiplus::Graphics* gdc, CRect rect);
 	void PaintPlus(Gdiplus::Graphics* gdc, CRect rect);
+	void PaintLine(Gdiplus::Graphics* gdc, CRect rect);
 
 protected:
 	TEXTSTRUCT text;

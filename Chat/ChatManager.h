@@ -20,6 +20,8 @@ public:
 	void loginAccount(CString account, CString password);
 	void loginAccountAct(std::string str);
 
+	void logoutAccount();
+
 	void searchUser(CString account);
 	void searchUserAct(std::string str);
 
