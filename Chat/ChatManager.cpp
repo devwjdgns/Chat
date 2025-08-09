@@ -475,6 +475,7 @@ void ChatManager::receiveMessage(std::string str)
 void ChatManager::receive()
 {
     char buffer[1024];
+    std::string message;
     while (state) 
     {
         int recvLen = recv(sock, buffer, sizeof(buffer) - 1, 0);
@@ -506,7 +507,7 @@ void ChatManager::receive()
             continue;
         }
         buffer[recvLen] = '\0';
-        std::string message(buffer);
+        message.append(buffer, recvLen);
         try 
         {
             nlohmann::json response = nlohmann::json::parse(message);
@@ -558,6 +559,8 @@ void ChatManager::receive()
         catch (const std::exception& e)
         {
             std::cerr << "JSON parse error: " << e.what() << "\n";
+            continue;
         }
+        message.clear();
     }
 }
