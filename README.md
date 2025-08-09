@@ -21,7 +21,7 @@
 
 ## 🖼️ Screenshots
 
-<img src="screenshots/login.png" width="180"/> <img src="screenshots/singlechat.png" width="400"/> <img src="screenshots/multichat.png" width="400"/>
+<img src="screenshots/singlechat.png" width="400"/> <img src="screenshots/multichat.png" width="400"/>
 
 
 ## 🛠️ Tools
