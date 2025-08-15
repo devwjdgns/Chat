@@ -18,12 +18,11 @@ void PaneWnd::Initialize(CWnd* parent, CRect rect)
 	CWnd::Create(className, _T("PaneWnd"), WS_CHILD | WS_VISIBLE, rect, parent, 1);
 }
 
-BOOL PaneWnd::AddElement(ElementWnd* element)
+ElementWnd* PaneWnd::AddElement(ElementWnd* element)
 {
-	if (element == NULL)
+	if (element == nullptr)
 	{
-		delete element;
-		return FALSE;
+		return element;
 	}
 
 	CRect rect;
@@ -55,13 +54,13 @@ BOOL PaneWnd::AddElement(ElementWnd* element)
 			if (totalsize < 0)
 			{
 				delete element;
-				return FALSE;
+				return nullptr;
 			}
 		}
 		element->Initialize(this, rect);
 	}
 	elements.push_back(element);
-	return TRUE;
+	return element;
 }
 
 BEGIN_MESSAGE_MAP(PaneWnd, CWnd)
@@ -78,7 +77,7 @@ void PaneWnd::OnSize(UINT nType, int cx, int cy)
 		int start = 0;
 		int end = cx;
 		int cnt = elements.size();
-		ElementWnd* resizableElement = NULL;
+		ElementWnd* resizableElement = nullptr;
 		for (int i = 0; i < cnt; i++)
 		{
 			if (elements[i]->GetSize() >= 0)
@@ -97,7 +96,7 @@ void PaneWnd::OnSize(UINT nType, int cx, int cy)
 				break;
 			}
 		}
-		if (resizableElement != NULL)
+		if (resizableElement != nullptr)
 		{
 			resizableElement->MoveWindow(start, 0, end-start, cy);
 		}
@@ -107,7 +106,7 @@ void PaneWnd::OnSize(UINT nType, int cx, int cy)
 		int start = 0;
 		int end = cy;
 		int cnt = elements.size();
-		ElementWnd* resizableElement = NULL;
+		ElementWnd* resizableElement = nullptr;
 		for (int i = 0; i < cnt; i++)
 		{
 			if (elements[i]->GetSize() >= 0)
@@ -126,7 +125,7 @@ void PaneWnd::OnSize(UINT nType, int cx, int cy)
 				break;
 			}
 		}
-		if (resizableElement != NULL)
+		if (resizableElement != nullptr)
 		{
 			resizableElement->MoveWindow(0, start, cx, end - start);
 		}

@@ -8,15 +8,14 @@
 
 #pragma comment(lib, "dwmapi.lib")
 
-CFriendDlg::CFriendDlg(ChatManager* cm) : chatManager(cm)
+CFriendDlg::CFriendDlg(std::shared_ptr<ChatManager> cm) : chatManager(cm)
 {
-	mainView = NULL;
+	mainView = nullptr;
 	sel = -1;
 }
 
 CFriendDlg::~CFriendDlg()
 {
-	delete mainView;
 }
 
 BOOL CFriendDlg::CreateWnd(CWnd* parent, CRect rect)
@@ -34,20 +33,23 @@ BOOL CFriendDlg::CreateWnd(CWnd* parent, CRect rect)
 	DwmExtendFrameIntoClientArea(m_hWnd, &shadow);
 	
 	GetClientRect(&rect);
-	ElementWnd* tmpWnd = NULL;
-	mainView = new PaneWnd(DIRECTION::VERTICAL, _T(""), -1, RGB(255, 255, 255));
+	ElementWnd* tmpWnd = nullptr;
+	PaneWnd* tmpPane = nullptr;
+	
+	mainView = std::make_unique<PaneWnd>(DIRECTION::VERTICAL, _T(""), -1, RGB(255, 255, 255));
 	mainView->Initialize(this, rect);
-	mainView->AddElement(new PaneWnd(DIRECTION::HORIZONTAL, _T(""), 70));
-	((PaneWnd*)mainView->GetElement(0))->AddElement(new EditWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 10, 10), 10), _T("SEARCHEDIT"), -1, RGB(255, 255, 255), RGB(125, 125, 125)));
-	((PaneWnd*)mainView->GetElement(0))->AddElement(new ButtonWnd(TEXTSTRUCT(_T("Search"), TEXTSTRUCT::STYLE::BOLD), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(0, 10, 10, 10), 10), _T("SEARCH"), 100, RGB(86, 124, 131)));
-
+	tmpPane = dynamic_cast<PaneWnd*>(mainView->AddElement(new PaneWnd(DIRECTION::HORIZONTAL, _T(""), 70)));
+	if (tmpPane)
+	{
+		tmpPane->AddElement(new EditWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 10, 10), 10), _T("SEARCHEDIT"), -1, RGB(255, 255, 255), RGB(125, 125, 125)));
+		tmpPane->AddElement(new ButtonWnd(TEXTSTRUCT(_T("Search"), TEXTSTRUCT::STYLE::BOLD), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(0, 10, 10, 10), 10), _T("SEARCH"), 100, RGB(86, 124, 131)));
+	}
 	mainView->AddElement(new ScrollWnd(DIRECTION::VERTICAL, _T("FRIENDLIST"), 460));
 
-	PaneWnd* tmpPane = new PaneWnd(DIRECTION::HORIZONTAL, _T(""), 70);
-	mainView->AddElement(tmpPane);
+	tmpPane = dynamic_cast<PaneWnd*>(mainView->AddElement(new PaneWnd(DIRECTION::HORIZONTAL, _T(""), 70)));
 	tmpPane->AddElement(new ItemWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(), _T(""), 135, RGB(255, 255, 255)));
 	tmpPane->AddElement(new ButtonWnd(TEXTSTRUCT(_T("Add"), TEXTSTRUCT::STYLE::BOLD), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 10, 5, 10), 10), _T("ADD"), 120, RGB(98, 164, 188)));
-	((ButtonWnd*)tmpPane->GetElement(1))->SetEnableStatus(FALSE);
+	tmpPane->GetElement<ButtonWnd>(1)->SetEnableStatus(FALSE);
 	tmpPane->AddElement(new ButtonWnd(TEXTSTRUCT(_T("Close"), TEXTSTRUCT::STYLE::BOLD), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(5, 10, 10, 10), 10), _T("CLOSE"), 120, RGB(200, 200, 200)));
 	tmpPane->AddElement(new ItemWnd(TEXTSTRUCT(_T("")), SHAPESTRUCT(), _T(""), 135, RGB(255, 255, 255)));
 	mainView->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
@@ -76,45 +78,60 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 
 		if (str.Compare(_T("SEARCH")) == 0)
 		{
-			PaneWnd* paneWnd = dynamic_cast<PaneWnd*>(mainView->GetElement(0));
+			PaneWnd* paneWnd = mainView->GetElement<PaneWnd>(0);
 			if (paneWnd)
 			{
-				CString text = ((EditWnd*)paneWnd->GetElement(0))->GetItemText();
-				chatManager->searchUser(text);
-				sel = -1;
+				if (auto edit = paneWnd->GetElement<EditWnd>(0))
+				{
+					CString text = edit->GetItemText();
+					chatManager->searchUser(text);
+					sel = -1;
+				}
 			}
 		}
 		else if (str.Find(_T("USER")) >= 0)
 		{
-			ButtonWnd* pBtn = NULL;
+			ButtonWnd* pBtn = nullptr;
 			if (sel >= 0)
 			{
-				pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
-				if (pBtn)
+				if (auto scroll = mainView->GetElement<ScrollWnd>(1))
 				{
-					pBtn->SetPressedStatus(FALSE);
-					pBtn->Invalidate();
+					pBtn = scroll->GetElement<ButtonWnd>(sel);
+					if (pBtn)
+					{
+						pBtn->SetPressedStatus(FALSE);
+						pBtn->Invalidate();
+					}
 				}
+				
 			}
 			sel = _ttoi(trimFromAffix(str, _T("USER")));
-			pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
-			if (pBtn)
+
+
+			if (auto scroll = mainView->GetElement<ScrollWnd>(1))
 			{
-				pBtn->SetPressedStatus(TRUE);
-			}
-			pBtn = dynamic_cast<ButtonWnd*>(mainView->FindElement(_T("ADD")));
-			if (pBtn)
-			{
-				pBtn->SetEnableStatus(TRUE);
+				pBtn = scroll->GetElement<ButtonWnd>(sel);
+				if (pBtn)
+				{
+					pBtn->SetPressedStatus(TRUE);
+				}
+				pBtn = mainView->FindElement<ButtonWnd>(_T("ADD"));
+				if (pBtn)
+				{
+					pBtn->SetEnableStatus(TRUE);
+				}
 			}
 		}
 		else if (str.Compare(_T("ADD")) == 0)
 		{
 			if (sel >= 0)
 			{
-				ButtonWnd* pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
-				CString account = trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"));
-				chatManager->addFriend(account);
+				if (auto scroll = mainView->GetElement<ScrollWnd>(1))
+				{
+					ButtonWnd* pBtn = scroll->GetElement<ButtonWnd>(sel);
+					CString account = trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"));
+					chatManager->addFriend(account);
+				}
 			}
 		}
 		else if (str.Compare(_T("CLOSE")) == 0)
@@ -127,19 +144,25 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 
 LRESULT CFriendDlg::OnSearchUserAction(WPARAM wParam, LPARAM lParam)
 {
-	((ScrollWnd*)mainView->GetElement(1))->ClearElement();
-	int count = (int)wParam;
 	CString* result = reinterpret_cast<CString*>(lParam);
+	int count = (int)wParam;
+	ScrollWnd* scrollWnd = mainView->GetElement<ScrollWnd>(1);
+	if (!scrollWnd)
+	{
+		delete[] result;
+		return 0;
+	}
+	scrollWnd->ClearElement();
 
 	for (int i = 0; i < count; ++i)
 	{
 		CString name;
 		name.Format(_T("USER%d"), i);
-		((ScrollWnd*)mainView->GetElement(1))->AddElement(new ButtonWnd(TEXTSTRUCT(result[i]), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 5, 10, 5), 10), name, 70, RGB(245, 245, 245)));
+		scrollWnd->AddElement(new ButtonWnd(TEXTSTRUCT(result[i]), SHAPESTRUCT(SHAPESTRUCT::SHAPE::SQUARE, CRect(10, 5, 10, 5), 10), name, 70, RGB(245, 245, 245)));
 	}
 	CRect rect;
-	((ScrollWnd*)mainView->GetElement(1))->GetClientRect(&rect);
-	mainView->GetElement(1)->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
+	scrollWnd->GetClientRect(&rect);
+	scrollWnd->SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(rect.Width(), rect.Height()));
 
 	delete[] result;
 	return 0;
@@ -151,8 +174,12 @@ LRESULT CFriendDlg::OnAddFriendAction(WPARAM wParam, LPARAM lParam)
 	if (static_cast<BOOL>(wParam))
 	{
 		delete result;
-		ButtonWnd* pBtn = dynamic_cast<ButtonWnd*>(((ScrollWnd*)mainView->GetElement(1))->GetElement(sel));
-		::SendMessage(GetParent()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, TRUE, (LPARAM)(LPCTSTR)pBtn->GetItemText());
+		ScrollWnd* scrollWnd = mainView->GetElement<ScrollWnd>(1);
+		if (!scrollWnd)return 0;
+		if (ButtonWnd* pBtn = scrollWnd->GetElement<ButtonWnd>(sel))
+		{
+			::SendMessage(GetParent()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, TRUE, (LPARAM)(LPCTSTR)pBtn->GetItemText());
+		}
 		EndModalLoop(IDOK);
 	}
 	else

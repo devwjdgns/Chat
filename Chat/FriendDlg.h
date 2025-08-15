@@ -4,6 +4,7 @@
 #include "ScrollWnd.h"
 #include "ButtonWnd.h"
 #include "EditWnd.h"
+#include <memory>
 
 #define WM_SEARCH_USER_ACTION (WM_USER + 201)
 #define WM_ADD_FRIEND_ACTION (WM_USER + 202)
@@ -13,7 +14,7 @@ class ChatManager;
 class CFriendDlg : public CWnd
 {
 public:
-	CFriendDlg(ChatManager* cm);
+	CFriendDlg(std::shared_ptr<ChatManager> cm);
 	~CFriendDlg();
 
 	BOOL CreateWnd(CWnd* parent, CRect rect);
@@ -28,7 +29,7 @@ protected:
 	afx_msg LRESULT OnAddFriendAction(WPARAM wParam, LPARAM lParam);
 
 private:
-	ChatManager* chatManager;
-	PaneWnd* mainView;
+	std::shared_ptr<ChatManager> chatManager;
+	std::unique_ptr<PaneWnd> mainView;
 	int sel;
 };

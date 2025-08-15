@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 #include <string>
+#include <memory>
 
 class CChatDlg;
 

@@ -2,6 +2,6 @@
 
 int main() {
     ChatServer server;
-    server.run(12345);
+    server.run("127.0.0.1", 12345);
     return 0;
 }

@@ -15,24 +15,23 @@ ChatServer::~ChatServer()
 {
     closesocket(serverSocket);
     WSACleanup();
-
-    for (auto client : clients) 
-    {
-        delete client;
-    }
 }
 
-void ChatServer::run(int port) 
+void ChatServer::run(std::string ip, int port)
 {
     sockaddr_in addr = {};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    if (inet_pton(AF_INET, ip.c_str(), &addr.sin_addr) <= 0)
+    {
+        std::cerr << "Invalid ip address\n";
+        return;
+    }
 
     bind(serverSocket, (sockaddr*)&addr, sizeof(addr));
     listen(serverSocket, SOMAXCONN);
 
-    std::cout << "Server started on port " << port << "\n";
+    std::cout << "Server started on " << ip << ":" << port << "\n";
     acceptClients();
 }
 
@@ -45,12 +44,12 @@ void ChatServer::acceptClients()
         SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &addrLen);
         if (clientSocket != INVALID_SOCKET) 
         {
-            auto* session = new ClientSession(clientSocket);
+            auto session = std::make_unique<ClientSession>(clientSocket);
             {
                 std::lock_guard<std::mutex> lock(clientsMutex);
-                clients.push_back(session);
+                clients.push_back(std::move(session));
             }
-            std::thread(&ChatServer::handleClient, this, session).detach();
+            std::thread(&ChatServer::handleClient, this, clients.back().get()).detach();
             std::cout << "Client connected.\n";
         }
     }
@@ -114,7 +113,7 @@ void ChatServer::handleClient(ClientSession* client)
             client->sendJson(response);
 
             std::lock_guard<std::mutex> lock(clientsMutex);
-            for (auto c : clients)
+            for (const auto& c : clients)
             {
                 if (c->getID() == id)
                 {
@@ -146,7 +145,7 @@ void ChatServer::handleClient(ClientSession* client)
             client->sendJson(response);
 
             std::lock_guard<std::mutex> lock(clientsMutex);
-            for (auto c : clients)
+            for (const auto& c : clients)
             {
                 if (c->getID() == id)
                 {
@@ -204,7 +203,7 @@ void ChatServer::handleClient(ClientSession* client)
             members.erase(std::remove(members.begin(), members.end(), client->getID()), members.end());
 
             std::lock_guard<std::mutex> lock(clientsMutex);
-            for (auto c : clients)
+            for (const auto& c : clients)
             {
                 auto it = std::find(members.begin(), members.end(), c->getID());
                 if (it != members.end())
@@ -260,7 +259,7 @@ void ChatServer::handleClient(ClientSession* client)
             members.erase(std::remove(members.begin(), members.end(), client->getID()), members.end());
 
             std::lock_guard<std::mutex> lock(clientsMutex);
-            for (auto c : clients)
+            for (const auto& c : clients)
             {
                 auto it = std::find(members.begin(), members.end(), c->getID());
                 if (it != members.end()) 
@@ -307,12 +306,11 @@ void ChatServer::handleClient(ClientSession* client)
     {
         std::lock_guard<std::mutex> lock(clientsMutex);
         clients.erase(std::remove_if(clients.begin(), clients.end(),
-            [client](ClientSession* c) 
+            [client](const std::unique_ptr<ClientSession>& c)
             {
                 return c->getSocket() == client->getSocket();
             }), clients.end());
     }
 
-    delete client;
     std::cout << "Client disconnected.\n";
 }

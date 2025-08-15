@@ -45,7 +45,7 @@ COLORREF ElementWnd::GetBackgroundColor()
 {
     if (bgcolor != CLR_NONE) return bgcolor;
     ElementWnd* parent = dynamic_cast<ElementWnd*>(GetParent());
-    while (parent != nullptr)
+    while (parent != NULL)
     {
         if (parent->bgcolor != CLR_NONE) return parent->bgcolor;
         parent = dynamic_cast<ElementWnd*>(parent->GetParent());

@@ -13,12 +13,11 @@ ContainerWnd::~ContainerWnd()
 	ClearElement();
 }
 
-BOOL ContainerWnd::AddElement(ElementWnd* element)
+ElementWnd* ContainerWnd::AddElement(ElementWnd* element)
 {
-	if (element == NULL)
+	if (element == nullptr)
 	{
-		delete element;
-		return FALSE;
+		return element;
 	}
 
 	CRect rect;
@@ -26,31 +25,7 @@ BOOL ContainerWnd::AddElement(ElementWnd* element)
 
 	element->Initialize(this, rect);
 	elements.push_back(element);
-	return TRUE;
-}
-
-ElementWnd* ContainerWnd::GetElement(int idx)
-{
-	if (idx >= elements.size()) return NULL;
-	return elements[idx];
-}
-
-ElementWnd* ContainerWnd::FindElement(CString name)
-{
-	if (GetName().Compare(name) == 0) return this;
-	for (int i = 0; i < elements.size(); i++)
-	{
-		if (elements[i]->GetName().Compare(name) == 0) return elements[i];
-		if (dynamic_cast<ContainerWnd*>(elements[i]) != NULL)
-		{
-			ElementWnd* tmp = dynamic_cast<ContainerWnd*>(elements[i])->FindElement(name);
-			if (tmp != NULL)
-			{
-				return tmp;
-			}
-		}
-	}
-	return NULL;
+	return element;
 }
 
 void ContainerWnd::DeleteElement(int idx)

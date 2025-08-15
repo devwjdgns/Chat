@@ -12,7 +12,7 @@ public:
 	void UsePaintEx();
 
 	void Initialize(CWnd* parent, CRect rect) override;
-	BOOL AddElement(ElementWnd* element) override;
+	ElementWnd* AddElement(ElementWnd* element) override;
 
 protected:
 	DECLARE_MESSAGE_MAP()

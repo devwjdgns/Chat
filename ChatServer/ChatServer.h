@@ -2,6 +2,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <memory>
 #include <winsock2.h>
 #include "ClientSession.h"
 #include "ChatDataManager.h"
@@ -10,11 +11,11 @@ class ChatServer {
 public:
     ChatServer();
     ~ChatServer();
-    void run(int port);
+    void run(std::string ip, int port);
 
 private:
     SOCKET serverSocket;
-    std::vector<ClientSession*> clients;
+    std::vector<std::unique_ptr<ClientSession>> clients;
     std::mutex clientsMutex;
     ChatDataManager dataManager;
 

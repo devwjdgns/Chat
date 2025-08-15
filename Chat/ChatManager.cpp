@@ -10,14 +10,17 @@
 
 ChatManager::ChatManager(CChatDlg* dlg): dlg(dlg)
 {
+    std::string ip = "127.0.0.1";
+    int port = 12345;
+
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
     sock = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr_in serverAddr = {};
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(12345);
-    inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+    serverAddr.sin_port = htons(port);
+    inet_pton(AF_INET, ip.c_str(), &serverAddr.sin_addr);
 
     if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
     {

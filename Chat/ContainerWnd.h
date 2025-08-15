@@ -11,8 +11,31 @@ public:
 
 	DIRECTION GetDirection() { return direction; }
 
-	ElementWnd* GetElement(int idx);
-	ElementWnd* FindElement(CString name);
+	template<typename T>
+	T* GetElement(int idx)
+	{
+		if (idx >= elements.size()) return nullptr;
+		return dynamic_cast<T*>(elements[idx]);
+	}
+	
+	template<typename T>
+	T* FindElement(CString name)
+	{
+		if (GetName().Compare(name) == 0) return dynamic_cast<T*>(this);
+		for (int i = 0; i < elements.size(); i++)
+		{
+			if (elements[i]->GetName().Compare(name) == 0) return dynamic_cast<T*>(elements[i]);
+			if (dynamic_cast<ContainerWnd*>(elements[i]) != nullptr)
+			{
+				if (ElementWnd* tmp = dynamic_cast<ContainerWnd*>(elements[i])->FindElement<ElementWnd>(name))
+				{
+					return dynamic_cast<T*>(tmp);
+				}
+			}
+		}
+		return nullptr;
+	}
+	
 	void DeleteElement(int idx);
 	void ClearElement();
 	int GetElementCount();
@@ -21,7 +44,7 @@ public:
 	void PaintExtern(CDC* pdc, CRect rect) override;
 	int GetMinSize(DIRECTION d) override;
 
-	virtual BOOL AddElement(ElementWnd* element);
+	virtual ElementWnd* AddElement(ElementWnd* element);
 
 protected:
 	DECLARE_MESSAGE_MAP()

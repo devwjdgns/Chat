@@ -104,10 +104,10 @@ private:
 
 private:
 	ULONG_PTR gdiplusToken;
-	PaneWnd* loginView;
-	PaneWnd* registerView;
-	PaneWnd* mainChatView;
-	ChatManager* chatManager;
-	CFriendDlg* friendDlg;
-	CRoomDlg* roomDlg;
+	std::unique_ptr<PaneWnd> loginView;
+	std::unique_ptr<PaneWnd> registerView;
+	std::unique_ptr<PaneWnd> mainChatView;
+	std::shared_ptr<ChatManager> chatManager;
+	std::unique_ptr<CFriendDlg> friendDlg;
+	std::unique_ptr<CRoomDlg> roomDlg;
 };

@@ -98,12 +98,11 @@ void ScrollWnd::Initialize(CWnd* parent, CRect rect)
 	}
 }
 
-BOOL ScrollWnd::AddElement(ElementWnd* element)
+ElementWnd* ScrollWnd::AddElement(ElementWnd* element)
 {
-	if (element == NULL)
+	if (element == nullptr)
 	{
-		delete element;
-		return FALSE;
+		return element;
 	}
 
 	CRect rect;
@@ -111,7 +110,7 @@ BOOL ScrollWnd::AddElement(ElementWnd* element)
 
 	element->Initialize(this, rect);
 	elements.push_back(element);
-	return TRUE;
+	return element;
 }
 
 BEGIN_MESSAGE_MAP(ScrollWnd, CWnd)
