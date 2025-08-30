@@ -13,6 +13,7 @@
 
 ### 🔧 시스템 기능
 - Winsock을 이용한 TCP 통신
+- OpenSSL을 이용한 TLS 암호
 - 서버-클라이언트 메시지 핸들링
 - SQLite 기반 데이터베이스 관리
 - PostMessage를 활용한 스레드-UI 간 통신
@@ -66,4 +67,12 @@
 ├── ChatDataManager.cpp
 ├── ChatServer.cpp
 └── ClientSession.cpp
+```
+
+## 📝 Instructions
+### 🔐 Self-Signed SSL 인증서 생성
+다음 명령어로 SSL 인증서를 생성할 수 있습니다:
+```bat
+openssl genrsa -out server.key 2048
+openssl req -new -x509 -key server.key -out server.crt -days 365
 ```
