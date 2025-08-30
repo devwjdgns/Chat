@@ -4,6 +4,9 @@
 #include <mutex>
 #include <memory>
 #include <winsock2.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include "ClientSession.h"
 #include "ChatDataManager.h"
 
@@ -14,11 +17,13 @@ public:
     void run(std::string ip, int port);
 
 private:
+    void acceptClients();
+    void handleClient(ClientSession* client);
+
+private:
     SOCKET serverSocket;
     std::vector<std::unique_ptr<ClientSession>> clients;
     std::mutex clientsMutex;
     ChatDataManager dataManager;
-
-    void acceptClients();
-    void handleClient(ClientSession* client);
+    SSL_CTX* ctx;
 };

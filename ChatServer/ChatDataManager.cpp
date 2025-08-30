@@ -496,7 +496,8 @@ bool ChatDataManager::createMessage(const int& client_id, const int& room_id, co
     const char* SQL = "INSERT INTO messages (room_id, sender_id, message, created_at) VALUES (?, ?, ?, ?);";
     sqlite3_stmt* stmt;
 
-    if (sqlite3_prepare_v2(db, SQL, -1, &stmt, nullptr) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, SQL, -1, &stmt, nullptr) != SQLITE_OK) 
+    {
         std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << "\n";
         return false;
     }
@@ -506,7 +507,8 @@ bool ChatDataManager::createMessage(const int& client_id, const int& room_id, co
     sqlite3_bind_text(stmt, 3, message.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 4, timestamp.c_str(), -1, SQLITE_TRANSIENT);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
+    if (sqlite3_step(stmt) != SQLITE_DONE) 
+    {
         std::cerr << "Insert failed: " << sqlite3_errmsg(db) << "\n";
         sqlite3_finalize(stmt);
         return false;
@@ -616,7 +618,8 @@ std::vector<int> ChatDataManager::getMembersID(const int& room_id)
     const char* sql = "SELECT user_id FROM room_members WHERE room_id = ?;";
     sqlite3_stmt* stmt = nullptr;
 
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) 
+    {
         std::cerr << "Prepare failed: " << sqlite3_errmsg(db) << "\n";
         return std::vector<int>();
     }
@@ -624,7 +627,8 @@ std::vector<int> ChatDataManager::getMembersID(const int& room_id)
     sqlite3_bind_int(stmt, 1, room_id);
 
     std::vector<int> members;
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
+    while (sqlite3_step(stmt) == SQLITE_ROW) 
+    {
         int id = sqlite3_column_int(stmt, 0);
         members.push_back(id);
     }

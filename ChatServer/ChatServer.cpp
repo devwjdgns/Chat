@@ -8,17 +8,67 @@
 ChatServer::ChatServer() 
 {
     WSAStartup(MAKEWORD(2, 2), new WSADATA);
-    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
+    const SSL_METHOD* method = TLS_server_method();
+    ctx = SSL_CTX_new(method);
+    if (!ctx) 
+    {
+        std::cerr << "SSL_CTX_new failed\n";
+        return;
+    }
+
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+
+    if (SSL_CTX_use_certificate_file(ctx, "server.crt", SSL_FILETYPE_PEM) <= 0) 
+    {
+        std::cerr << "Load certificate failed\n";
+        ERR_print_errors_fp(stderr);
+        return;
+    }
+    if (SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM) <= 0) 
+    {
+        std::cerr << "Load private key failed\n";
+        ERR_print_errors_fp(stderr);
+        return;
+    }
+    if (!SSL_CTX_check_private_key(ctx)) 
+    {
+        std::cerr << "Private key does not match the certificate public key\n";
+        return;
+    }
+
+    serverSocket = INVALID_SOCKET;
 }
 
 ChatServer::~ChatServer() 
 {
-    closesocket(serverSocket);
+    if (serverSocket != INVALID_SOCKET) 
+    {
+        closesocket(serverSocket);
+        serverSocket = INVALID_SOCKET;
+    }
+    if (ctx)
+    {
+        SSL_CTX_free(ctx);
+        ctx = nullptr;
+    }
+    EVP_cleanup();
     WSACleanup();
 }
 
 void ChatServer::run(std::string ip, int port)
 {
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == INVALID_SOCKET) 
+    {
+        std::cerr << "socket() failed\n";
+        return;
+    }
+
     sockaddr_in addr = {};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -28,8 +78,16 @@ void ChatServer::run(std::string ip, int port)
         return;
     }
 
-    bind(serverSocket, (sockaddr*)&addr, sizeof(addr));
-    listen(serverSocket, SOMAXCONN);
+    if (bind(serverSocket, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) 
+    {
+        std::cerr << "bind() failed\n";
+        return;
+    }
+    if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR) 
+    {
+        std::cerr << "listen() failed\n";
+        return;
+    }
 
     std::cout << "Server started on " << ip << ":" << port << "\n";
     acceptClients();
@@ -44,13 +102,32 @@ void ChatServer::acceptClients()
         SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &addrLen);
         if (clientSocket != INVALID_SOCKET) 
         {
-            auto session = std::make_unique<ClientSession>(clientSocket);
+            SSL* ssl = SSL_new(ctx);
+            if (!ssl)
+            {
+                closesocket(clientSocket);
+                continue;
+            }
+            SSL_set_fd(ssl, (int)clientSocket);
+            
+            if (SSL_accept(ssl) <= 0)
+            {
+                std::cerr << "SSL_accept failed\n";
+                ERR_print_errors_fp(stderr);
+                SSL_free(ssl);
+                closesocket(clientSocket);
+                continue;
+            }
+
+            std::cout << "Client connected with " << SSL_get_cipher(ssl) << " encryption\n";
+
+
+            auto session = std::make_unique<ClientSession>(clientSocket, ssl);
             {
                 std::lock_guard<std::mutex> lock(clientsMutex);
                 clients.push_back(std::move(session));
             }
             std::thread(&ChatServer::handleClient, this, clients.back().get()).detach();
-            std::cout << "Client connected.\n";
         }
     }
 }

@@ -15,17 +15,48 @@ ChatManager::ChatManager(CChatDlg* dlg): dlg(dlg)
 
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
+    const SSL_METHOD* method = TLS_client_method();
+    ctx = SSL_CTX_new(method);
+    if (!ctx) 
+    {
+        std::cerr << "SSL_CTX_new failed\n";
+        return;
+    }
+
     sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET) 
+    {
+        std::cerr << "Socket creation failed\n";
+        return;
+    }
 
     sockaddr_in serverAddr = {};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     inet_pton(AF_INET, ip.c_str(), &serverAddr.sin_addr);
 
-    if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
+    if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) 
     {
+        std::cerr << "Connect failed\n";
         closesocket(sock);
         sock = INVALID_SOCKET;
+        return;
+    }
+
+    ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, (int)sock);
+
+    if (SSL_connect(ssl) <= 0) 
+    {
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl);
+        ssl = nullptr;
+        return;
     }
 
     receiver = std::thread([this]() {
@@ -37,23 +68,38 @@ ChatManager::~ChatManager()
 {
     state = false;
 
-    closesocket(sock);
+    if (ssl) 
+    {
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
+    }
+    if (sock != INVALID_SOCKET) 
+    {
+        closesocket(sock);
+    }
+    if (ctx) 
+    {
+        SSL_CTX_free(ctx);
+    }
 
     if (receiver.joinable())
         receiver.join();
 
+    EVP_cleanup();
     WSACleanup();
 }
 
 void ChatManager::registerAccount(CString name, CString account, CString password)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "register";
     j["name"] = convertString(name);
     j["account"] = convertString(account);
     j["password"] = convertString(password);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::registerAccountAct(std::string str)
@@ -82,12 +128,14 @@ void ChatManager::registerAccountAct(std::string str)
 
 void ChatManager::loginAccount(CString account, CString password)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "login";
     j["account"] = convertString(account);
     j["password"] = convertString(password);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::loginAccountAct(std::string str)
@@ -116,19 +164,23 @@ void ChatManager::loginAccountAct(std::string str)
 
 void ChatManager::logoutAccount()
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "logout";
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::searchUser(CString account)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "search_user";
     j["account"] = convertString(account);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::searchUserAct(std::string str)
@@ -168,11 +220,13 @@ void ChatManager::searchUserAct(std::string str)
 
 void ChatManager::addFriend(CString account)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "add_friend";
     j["account"] = convertString(account);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::addFriendAct(std::string str)
@@ -201,11 +255,13 @@ void ChatManager::addFriendAct(std::string str)
 
 void ChatManager::deleteFriend(CString account)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "delete_friend";
     j["account"] = convertString(account);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::deleteFriendAct(std::string str)
@@ -234,10 +290,12 @@ void ChatManager::deleteFriendAct(std::string str)
 
 void ChatManager::searchFriend()
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "search_friend";
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::searchFriendAct(std::string str)
@@ -276,6 +334,8 @@ void ChatManager::searchFriendAct(std::string str)
 
 void ChatManager::createRoom(CString name, CArray<CString, CString>& friends)
 {
+    if (!ssl) return;
+
     std::vector<std::string> accounts;
     for (int i = 0; i < friends.GetCount(); i++)
     {
@@ -285,8 +345,8 @@ void ChatManager::createRoom(CString name, CArray<CString, CString>& friends)
     j["type"] = "create_room";
     j["name"] = convertString(name);
     j["accounts"] = accounts;
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::createRoomAct(std::string str)
@@ -317,11 +377,13 @@ void ChatManager::createRoomAct(std::string str)
 
 void ChatManager::deleteRoom(int id)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "delete_room";
     j["id"] = id;
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::deleteRoomAct(std::string str)
@@ -350,10 +412,12 @@ void ChatManager::deleteRoomAct(std::string str)
 
 void ChatManager::searchRoom()
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "search_room";
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::searchRoomAct(std::string str)
@@ -392,20 +456,24 @@ void ChatManager::searchRoomAct(std::string str)
 
 void ChatManager::searchMessage(int id)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "search_message";
     j["id"] = id;
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::searchMessage(CString account)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "search_message";
     j["account"] = convertString(account);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
 void ChatManager::searchMessageAct(std::string str)
@@ -444,13 +512,15 @@ void ChatManager::searchMessageAct(std::string str)
 
 void ChatManager::sendMessage(int id, CString message, CString timestamp)
 {
+    if (!ssl) return;
+
     nlohmann::json j;
     j["type"] = "send_message";
     j["id"] = id;
     j["message"] = convertString(message);
     j["timestamp"] = convertString(timestamp);
-    std::string json = j.dump();
-    send(sock, json.c_str(), json.length(), 0);
+    std::string json = j.dump() + "\n";
+    SSL_write(ssl, json.c_str(), (int)json.length());
     dlg->SendChatMessage(message, timestamp);
 }
 
@@ -479,91 +549,79 @@ void ChatManager::receive()
 {
     char buffer[1024];
     std::string message;
-    while (state) 
+    while (state && ssl)
     {
-        int recvLen = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        int recvLen = SSL_read(ssl, buffer, sizeof(buffer));
         if (!state) break;
-        if (recvLen <= 0)
-        {
-            sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock == INVALID_SOCKET)
-            {
-                std::cerr << "Socket creation failed\n";
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                continue;
-            }
-            sockaddr_in serverAddr = {};
-            serverAddr.sin_family = AF_INET;
-            serverAddr.sin_port = htons(12345);
-            inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
 
-            if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR)
-            {
-                closesocket(sock);
-                sock = INVALID_SOCKET;
-                std::cerr << "Connect failed, retrying...\n";
-                CString* result = new CString(_T("Disconnected..."));
-                ::PostMessage(dlg->GetSafeHwnd(), WM_LOGOUT_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                continue;
-            }
-            continue;
+        if (recvLen <= 0) 
+        {
+            std::cerr << "SSL connection lost\n";
+            CString* result = new CString(_T("Disconnected..."));
+            ::PostMessage(dlg->GetSafeHwnd(), WM_LOGOUT_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+            break;
         }
-        buffer[recvLen] = '\0';
         message.append(buffer, recvLen);
-        try 
+
+        size_t pos;
+        while ((pos = message.find('\n')) != std::string::npos)
         {
-            nlohmann::json response = nlohmann::json::parse(message);
-            if (response.contains("type") && response["type"] == "register")
+            std::string oneMessage = message.substr(0, pos);
+            message.erase(0, pos + 1);
+
+            try 
             {
-                registerAccountAct(message);
+                nlohmann::json response = nlohmann::json::parse(oneMessage);
+
+                if (response.contains("type") && response["type"] == "register") 
+                {
+                    registerAccountAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "login") 
+                {
+                    loginAccountAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "search_user")
+                {
+                    searchUserAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "add_friend")
+                {
+                    addFriendAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "delete_friend") 
+                {
+                    deleteFriendAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "search_friend") 
+                {
+                    searchFriendAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "create_room") 
+                {
+                    createRoomAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "delete_room") 
+                {
+                    deleteRoomAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "search_room") 
+                {
+                    searchRoomAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "search_message") 
+                {
+                    searchMessageAct(oneMessage);
+                }
+                else if (response.contains("type") && response["type"] == "send_message")
+                {
+                    receiveMessage(oneMessage);
+                }
             }
-            else if (response.contains("type") && response["type"] == "login")
+            catch (const std::exception& e)
             {
-                loginAccountAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "search_user")
-            {
-                searchUserAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "add_friend")
-            {
-                addFriendAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "delete_friend")
-            {
-                deleteFriendAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "search_friend")
-            {
-                searchFriendAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "create_room")
-            {
-                createRoomAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "delete_room")
-            {
-                deleteRoomAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "search_room")
-            {
-                searchRoomAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "search_message")
-            {
-                searchMessageAct(message);
-            }
-            else if (response.contains("type") && response["type"] == "send_message")
-            {
-                receiveMessage(message);
+                std::cerr << "JSON parse error: " << e.what() << "\n";
             }
         }
-        catch (const std::exception& e)
-        {
-            std::cerr << "JSON parse error: " << e.what() << "\n";
-            continue;
-        }
-        message.clear();
     }
 }

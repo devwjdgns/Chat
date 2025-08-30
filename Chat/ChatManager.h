@@ -6,6 +6,9 @@
 #include <string>
 #include <memory>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 class CChatDlg;
 
 class ChatManager
@@ -57,6 +60,8 @@ private:
 	std::thread receiver;
 	std::atomic<bool> state{ true };
 
+	SSL_CTX* ctx;
+	SSL* ssl;
 	SOCKET sock;
 	CChatDlg* dlg;
 };
