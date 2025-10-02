@@ -200,6 +200,7 @@
     <ClInclude Include="ChatManager.h" />
     <ClInclude Include="ContainerWnd.h" />
     <ClInclude Include="FriendDlg.h" />
+    <ClInclude Include="IData.h" />
     <ClInclude Include="PaneWnd.h" />
     <ClInclude Include="EditWnd.h" />
     <ClInclude Include="ElementWnd.h" />

@@ -327,7 +327,7 @@ void ChatServer::handleClient(ClientSession* client)
             }
             client->sendJson(response);
         }
-        else if (type == "send_message")
+        else if (type == "update_message")
         {
             j["name"] = dataManager.getUserName(client->getID());
             std::vector<int> members;
