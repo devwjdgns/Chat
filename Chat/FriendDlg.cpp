@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "FriendDlg.h"
-#include "ChatManager.h"
+#include "../ChatCore/ChatManager.h"
 #include "utility.h"
 
 #include <dwmapi.h>

@@ -57,9 +57,6 @@
     <ClInclude Include="ContainerWnd.h">
       <Filter>그래픽 파일</Filter>
     </ClInclude>
-    <ClInclude Include="ChatManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="utility.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -67,9 +64,6 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="RoomDlg.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="IData.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -103,9 +97,6 @@
     </ClCompile>
     <ClCompile Include="ContainerWnd.cpp">
       <Filter>그래픽 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="ChatManager.cpp">
-      <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="utility.cpp">
       <Filter>소스 파일</Filter>

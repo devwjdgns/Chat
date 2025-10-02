@@ -1,7 +1,4 @@
-#include "pch.h"
-#include "framework.h"
 #include "ChatManager.h"
-#include "utility.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -39,7 +36,8 @@ ChatManager::ChatManager()
 
     if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) 
     {
-        std::cerr << "Connect failed\n";
+        int err = WSAGetLastError();
+        std::cerr << "Connect failed. WSA error code: " << err << "\n";
         closesocket(sock);
         sock = INVALID_SOCKET;
         return;
@@ -108,11 +106,13 @@ void ChatManager::registerAccountAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            if (eventHandler) eventHandler("register", true, &StringData("Account created!"));
+            auto data = std::make_shared<StringData>("Account created!");
+            if (eventHandler) eventHandler("register", true, data.get());
         }
         else
         {
-            if (eventHandler) eventHandler("register", false, &StringData("The account already exists!"));
+            auto data = std::make_shared<StringData>("The account already exists!");
+            if (eventHandler) eventHandler("register", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -140,11 +140,13 @@ void ChatManager::loginAccountAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            if (eventHandler) eventHandler("login", true, &StringData(""));
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("login", true, data.get());
         }
         else
         {
-            if (eventHandler) eventHandler("login", false, &StringData("Login failed!"));
+            auto data = std::make_shared<StringData>("Login failed!");
+            if (eventHandler) eventHandler("login", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -190,7 +192,8 @@ void ChatManager::searchUserAct(std::string str)
                 resultList.push_back(formatted);
             }
         }
-        if (eventHandler) eventHandler("search_user", false, &ListData(resultList));
+        auto data = std::make_shared<ListData>(resultList);
+        if (eventHandler) eventHandler("search_user", false, data.get());
     }
     catch (const std::exception& e)
     {
@@ -216,11 +219,13 @@ void ChatManager::addFriendAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            if (eventHandler) eventHandler("add_friend", true, &StringData(""));
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("add_friend", true, data.get());
         }
         else
         {
-            if (eventHandler) eventHandler("add_friend", false, &StringData("Add friend failed!"));
+            auto data = std::make_shared<StringData>("Add friend failed!");
+            if (eventHandler) eventHandler("add_friend", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -247,11 +252,13 @@ void ChatManager::deleteFriendAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            if (eventHandler) eventHandler("delete_friend", true, &StringData(""));
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("delete_friend", true, data.get());
         }
         else
         {
-            if (eventHandler) eventHandler("delete_friend", false, &StringData("Delete friend failed!"));
+            auto data = std::make_shared<StringData>("Delete friend failed!");
+            if (eventHandler) eventHandler("delete_friend", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -287,7 +294,8 @@ void ChatManager::searchFriendAct(std::string str)
                 resultList.push_back(formatted);
             }
         }
-        if (eventHandler) eventHandler("search_friend", false, &ListData(resultList));
+        auto data = std::make_shared<ListData>(resultList);
+        if (eventHandler) eventHandler("search_friend", false, data.get());
     }
     catch (const std::exception& e)
     {
@@ -314,11 +322,13 @@ void ChatManager::createRoomAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            if (eventHandler) eventHandler("create_room", true, &StringData(std::to_string(response["id"].get<int>())));
+            auto data = std::make_shared<StringData>(std::to_string(response["id"].get<int>()));
+            if (eventHandler) eventHandler("create_room", true, data.get());
         }
         else
         {
-            if (eventHandler) eventHandler("create_room", false, &StringData("Create Room failed!"));
+            auto data = std::make_shared<StringData>("Create Room failed!");
+            if (eventHandler) eventHandler("create_room", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -345,11 +355,13 @@ void ChatManager::deleteRoomAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            if (eventHandler) eventHandler("delete_room", true, &StringData(""));
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("delete_room", true, data.get());
         }
         else
         {
-            if (eventHandler) eventHandler("delete_room", false, &StringData("Delete Room failed!"));
+            auto data = std::make_shared<StringData>("Delete Room failed!");
+            if (eventHandler) eventHandler("delete_room", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -385,7 +397,8 @@ void ChatManager::searchRoomAct(std::string str)
                 resultList.push_back(formatted);
             }
         }
-        if (eventHandler) eventHandler("search_room", false, &ListData(resultList));
+        auto data = std::make_shared<ListData>(resultList);
+        if (eventHandler) eventHandler("search_room", false, data.get());
     }
     catch (const std::exception& e)
     {
@@ -488,8 +501,8 @@ void ChatManager::receive()
         if (recvLen <= 0) 
         {
             std::cerr << "SSL connection lost\n";
-            CString* result = new CString(_T("Disconnected..."));
-            if (eventHandler) eventHandler("logout", true, &StringData("Disconnected..."));
+            auto data = std::make_shared<StringData>("Disconnected...");
+            if (eventHandler) eventHandler("logout", true, data.get());
             break;
         }
         message.append(buffer, recvLen);

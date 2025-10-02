@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-class IData
+class __declspec(dllexport) IData
 {
 public:
 	virtual ~IData() = default;
@@ -14,21 +14,21 @@ public:
 	static const T* GetData(const IData* data) { return dynamic_cast<const T*>(data); }
 };
 
-class StringData : public IData
+class __declspec(dllexport) StringData : public IData
 {
 public:
 	StringData(const std::string& str) :str(str) {}
 	std::string str;
 };
 
-class ListData : public IData
+class __declspec(dllexport) ListData : public IData
 {
 public:
 	ListData(const std::vector<std::string>& list) :list(list) {}
 	std::vector<std::string> list;
 };
 
-class MessageData : public IData
+class __declspec(dllexport) MessageData : public IData
 {
 public:
 	MessageData() :name(""), message(""), timestamp("") {}

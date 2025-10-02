@@ -7,7 +7,7 @@
 #include "ScrollWnd.h"
 #include "ButtonWnd.h"
 #include "EditWnd.h"
-#include "ChatManager.h"
+#include "../ChatCore/ChatManager.h"
 
 #define WM_LOGIN_ACTION (WM_USER + 100)
 #define WM_REGISTER_ACTION (WM_USER + 101)

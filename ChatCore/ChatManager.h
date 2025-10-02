@@ -7,17 +7,17 @@
 #include <memory>
 #include <functional>
 
+#include <nlohmann/json.hpp>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
 #include "IData.h"
 
-class ChatManager
+class __declspec(dllexport) ChatManager
 {
 public:
 	ChatManager();
 	~ChatManager();
-
 
 	void registerAccount(std::string name, std::string account, std::string password);
 	void registerAccountAct(std::string str);
@@ -56,7 +56,6 @@ public:
 	void receiveMessage(std::string str);
 	
 	void receive();
-
 
 	using EventHandler = std::function<void(const std::string& type, const int& state, const IData* data)>;
 	void setEventHandler(EventHandler handler)
