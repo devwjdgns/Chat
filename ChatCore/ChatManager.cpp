@@ -1,14 +1,8 @@
-#include "pch.h"
-#include "framework.h"
 #include "ChatManager.h"
-#include "ChatDlg.h"
-#include "FriendDlg.h"
-#include "RoomDlg.h"
-#include "utility.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
-ChatManager::ChatManager(CChatDlg* dlg): dlg(dlg)
+ChatManager::ChatManager()
 {
     std::string ip = "127.0.0.1";
     int port = 12345;
@@ -42,7 +36,8 @@ ChatManager::ChatManager(CChatDlg* dlg): dlg(dlg)
 
     if (connect(sock, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) 
     {
-        std::cerr << "Connect failed\n";
+        int err = WSAGetLastError();
+        std::cerr << "Connect failed. WSA error code: " << err << "\n";
         closesocket(sock);
         sock = INVALID_SOCKET;
         return;
@@ -69,35 +64,37 @@ ChatManager::~ChatManager()
     state = false;
 
     if (ssl) 
-    {
         SSL_shutdown(ssl);
-        SSL_free(ssl);
-    }
+    
     if (sock != INVALID_SOCKET) 
-    {
-        closesocket(sock);
-    }
-    if (ctx) 
-    {
-        SSL_CTX_free(ctx);
-    }
+        shutdown(sock, SD_BOTH);
 
     if (receiver.joinable())
         receiver.join();
 
+    if (ssl) 
+        SSL_free(ssl);
+
+    if (sock != INVALID_SOCKET) 
+        closesocket(sock);
+
+    if (ctx) 
+        SSL_CTX_free(ctx);
+
+    ERR_free_strings();
     EVP_cleanup();
     WSACleanup();
 }
 
-void ChatManager::registerAccount(CString name, CString account, CString password)
+void ChatManager::registerAccount(std::string name, std::string account, std::string password)
 {
     if (!ssl) return;
 
     nlohmann::json j;
     j["type"] = "register";
-    j["name"] = convertString(name);
-    j["account"] = convertString(account);
-    j["password"] = convertString(password);
+    j["name"] = name;
+    j["account"] = account;
+    j["password"] = password;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
@@ -109,15 +106,13 @@ void ChatManager::registerAccountAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            CString* result = new CString(_T("Account created!"));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_REGISTER_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("Account created!");
+            if (eventHandler) eventHandler("register", true, data.get());
         }
         else
         {
-            CString* result = new CString(_T("The account already exists!"));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_REGISTER_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("The account already exists!");
+            if (eventHandler) eventHandler("register", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -126,14 +121,14 @@ void ChatManager::registerAccountAct(std::string str)
     }
 }
 
-void ChatManager::loginAccount(CString account, CString password)
+void ChatManager::loginAccount(std::string account, std::string password)
 {
     if (!ssl) return;
 
     nlohmann::json j;
     j["type"] = "login";
-    j["account"] = convertString(account);
-    j["password"] = convertString(password);
+    j["account"] = account;
+    j["password"] = password;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
@@ -145,15 +140,13 @@ void ChatManager::loginAccountAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            CString* result = new CString(_T(""));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_LOGIN_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("login", true, data.get());
         }
         else
         {
-            CString* result = new CString(_T("Login failed!"));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_LOGIN_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("Login failed!");
+            if (eventHandler) eventHandler("login", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -172,13 +165,13 @@ void ChatManager::logoutAccount()
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
-void ChatManager::searchUser(CString account)
+void ChatManager::searchUser(std::string account)
 {
     if (!ssl) return;
 
     nlohmann::json j;
     j["type"] = "search_user";
-    j["account"] = convertString(account);
+    j["account"] = account;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
@@ -188,29 +181,19 @@ void ChatManager::searchUserAct(std::string str)
     try
     {
         nlohmann::json response = nlohmann::json::parse(str);
-        std::vector<CString> resultList;
+        std::vector<std::string> resultList;
         if (response.contains("users") && response["users"].is_array())
         {
             for (const auto& user : response["users"])
             {
                 std::string name = user.value("name", "");
                 std::string account = user.value("account", "");
-
-                CString formatted;
-                formatted.Format(_T("%s(%s)"), convertString(name), convertString(account));
+                std::string formatted = name + "(" + account + ")";
                 resultList.push_back(formatted);
             }
         }
-
-        int count = static_cast<int>(resultList.size());
-        CString* result = new CString[count];
-
-        for (int i = 0; i < count; ++i)
-        {
-            result[i] = resultList[i];
-        }
-
-        ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_SEARCH_USER_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+        auto data = std::make_shared<ListData>(resultList);
+        if (eventHandler) eventHandler("search_user", false, data.get());
     }
     catch (const std::exception& e)
     {
@@ -218,13 +201,13 @@ void ChatManager::searchUserAct(std::string str)
     }
 }
 
-void ChatManager::addFriend(CString account)
+void ChatManager::addFriend(std::string account)
 {
     if (!ssl) return;
 
     nlohmann::json j;
     j["type"] = "add_friend";
-    j["account"] = convertString(account);
+    j["account"] = account;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
@@ -236,15 +219,13 @@ void ChatManager::addFriendAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            CString* result = new CString(_T(""));
-            ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("add_friend", true, data.get());
         }
         else
         {
-            CString* result = new CString(_T("Add friend failed!"));
-            ::PostMessage(dlg->GetFriendDlg()->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("Add friend failed!");
+            if (eventHandler) eventHandler("add_friend", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -253,13 +234,13 @@ void ChatManager::addFriendAct(std::string str)
     }
 }
 
-void ChatManager::deleteFriend(CString account)
+void ChatManager::deleteFriend(std::string account)
 {
     if (!ssl) return;
 
     nlohmann::json j;
     j["type"] = "delete_friend";
-    j["account"] = convertString(account);
+    j["account"] = account;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
@@ -271,15 +252,13 @@ void ChatManager::deleteFriendAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            CString* result = new CString(_T(""));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_FRIEND_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("delete_friend", true, data.get());
         }
         else
         {
-            CString* result = new CString(_T("Delete friend failed!"));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_FRIEND_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("Delete friend failed!");
+            if (eventHandler) eventHandler("delete_friend", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -303,7 +282,7 @@ void ChatManager::searchFriendAct(std::string str)
     try
     {
         nlohmann::json response = nlohmann::json::parse(str);
-        std::vector<CString> resultList;
+        std::vector<std::string> resultList;
         if (response.contains("friends") && response["friends"].is_array())
         {
             for (const auto& user : response["friends"])
@@ -311,20 +290,12 @@ void ChatManager::searchFriendAct(std::string str)
                 std::string name = user.value("name", "");
                 std::string account = user.value("account", "");
 
-                CString formatted;
-                formatted.Format(_T("%s(%s)"), convertString(name), convertString(account));
+                std::string formatted = name + "(" + account + ")";
                 resultList.push_back(formatted);
             }
         }
-
-        int count = static_cast<int>(resultList.size());
-        CString* result = new CString[count];
-
-        for (int i = 0; i < count; ++i)
-        {
-            result[i] = resultList[i];
-        }
-        ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_FRIEND_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+        auto data = std::make_shared<ListData>(resultList);
+        if (eventHandler) eventHandler("search_friend", false, data.get());
     }
     catch (const std::exception& e)
     {
@@ -332,18 +303,13 @@ void ChatManager::searchFriendAct(std::string str)
     }
 }
 
-void ChatManager::createRoom(CString name, CArray<CString, CString>& friends)
+void ChatManager::createRoom(std::string name, std::vector<std::string>& accounts)
 {
     if (!ssl) return;
 
-    std::vector<std::string> accounts;
-    for (int i = 0; i < friends.GetCount(); i++)
-    {
-        accounts.push_back(convertString(friends.GetAt(i)));
-    }
     nlohmann::json j;
     j["type"] = "create_room";
-    j["name"] = convertString(name);
+    j["name"] = name;
     j["accounts"] = accounts;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
@@ -356,17 +322,13 @@ void ChatManager::createRoomAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            CString id;
-            id.Format(_T("%d"), response["id"].get<int>());
-            CString* result = new CString(id);
-            ::PostMessage(dlg->GetRoomDlg()->GetSafeHwnd(), WM_CREATE_ROOM_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>(std::to_string(response["id"].get<int>()));
+            if (eventHandler) eventHandler("create_room", true, data.get());
         }
         else
         {
-            CString* result = new CString(_T("Create Room failed!"));
-            ::PostMessage(dlg->GetRoomDlg()->GetSafeHwnd(), WM_CREATE_ROOM_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("Create Room failed!");
+            if (eventHandler) eventHandler("create_room", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -393,15 +355,13 @@ void ChatManager::deleteRoomAct(std::string str)
         nlohmann::json response = nlohmann::json::parse(str);
         if (response["status"].get<bool>())
         {
-            CString* result = new CString(_T(""));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_ROOM_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("");
+            if (eventHandler) eventHandler("delete_room", true, data.get());
         }
         else
         {
-            CString* result = new CString(_T("Delete Room failed!"));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_DELETE_ROOM_ACTION, FALSE, reinterpret_cast<LPARAM>(result));
-            return;
+            auto data = std::make_shared<StringData>("Delete Room failed!");
+            if (eventHandler) eventHandler("delete_room", false, data.get());
         }
     }
     catch (const std::exception& e)
@@ -425,7 +385,7 @@ void ChatManager::searchRoomAct(std::string str)
     try
     {
         nlohmann::json response = nlohmann::json::parse(str);
-        std::vector<CString> resultList;
+        std::vector<std::string> resultList;
         if (response.contains("rooms") && response["rooms"].is_array())
         {
             for (const auto& rooms : response["rooms"])
@@ -433,20 +393,12 @@ void ChatManager::searchRoomAct(std::string str)
                 int id = rooms.value("id", 0);
                 std::string name = rooms.value("name", "");
 
-                CString formatted;
-                formatted.Format(_T("(%d)%s"), id, convertString(name));
+                std::string formatted = "(" + std::to_string(id) + ")" + name;
                 resultList.push_back(formatted);
             }
         }
-
-        int count = static_cast<int>(resultList.size());
-        CString* result = new CString[count];
-
-        for (int i = 0; i < count; ++i)
-        {
-            result[i] = resultList[i];
-        }
-        ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_ROOM_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+        auto data = std::make_shared<ListData>(resultList);
+        if (eventHandler) eventHandler("search_room", false, data.get());
     }
     catch (const std::exception& e)
     {
@@ -465,13 +417,13 @@ void ChatManager::searchMessage(int id)
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
 
-void ChatManager::searchMessage(CString account)
+void ChatManager::searchMessage(std::string account)
 {
     if (!ssl) return;
 
     nlohmann::json j;
     j["type"] = "search_message";
-    j["account"] = convertString(account);
+    j["account"] = account;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
 }
@@ -481,28 +433,26 @@ void ChatManager::searchMessageAct(std::string str)
     try
     {
         nlohmann::json response = nlohmann::json::parse(str);
-        dlg->roomId = response["id"];
-        std::vector<MessageData> resultList;
+        if (eventHandler) eventHandler("room_info", response["id"], nullptr);
         if (response.contains("messages") && response["messages"].is_array())
         {
-            for (const auto& messages : response["messages"])
+            int count = response["messages"].size();
+            if (count == 0)
             {
-                MessageData data;
-                data.name = convertString(messages.value("name", ""));
-                data.message = convertString(messages.value("message", ""));
-                data.timestamp = convertString(messages.value("timestamp", ""));
-                resultList.push_back(data);
+                MessageData* resultList = new MessageData[1];
+                if (eventHandler) eventHandler("search_message", count, resultList);
+            }
+            else
+            {
+                MessageData* resultList = new MessageData[count];
+                for (int i = 0; i < count; i++) {
+                    const auto& messages = response["messages"][i];
+                    MessageData data(messages.value("name", ""), messages.value("message", ""), messages.value("timestamp", ""));
+                    resultList[i] = data;
+                }
+                if (eventHandler) eventHandler("search_message", count, resultList);
             }
         }
-
-        int count = static_cast<int>(resultList.size());
-        MessageData* result = new MessageData[count];
-
-        for (int i = 0; i < count; ++i)
-        {
-            result[i] = resultList[i];
-        }
-        ::PostMessage(dlg->GetSafeHwnd(), WM_SEARCH_MESSAGE_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
     }
     catch (const std::exception& e)
     {
@@ -510,18 +460,19 @@ void ChatManager::searchMessageAct(std::string str)
     }
 }
 
-void ChatManager::sendMessage(int id, CString message, CString timestamp)
+void ChatManager::sendMessage(int id, std::string message, std::string timestamp)
 {
     if (!ssl) return;
 
     nlohmann::json j;
-    j["type"] = "send_message";
+    j["type"] = "update_message";
     j["id"] = id;
-    j["message"] = convertString(message);
-    j["timestamp"] = convertString(timestamp);
+    j["message"] = message;
+    j["timestamp"] = timestamp;
     std::string json = j.dump() + "\n";
     SSL_write(ssl, json.c_str(), (int)json.length());
-    dlg->SendChatMessage(message, timestamp);
+    MessageData* result = new MessageData("", message, timestamp);
+    if (eventHandler) eventHandler("update_message", id, result);
 }
 
 void ChatManager::receiveMessage(std::string str)
@@ -529,15 +480,8 @@ void ChatManager::receiveMessage(std::string str)
     try 
     {
         nlohmann::json response = nlohmann::json::parse(str);
-        int id = response["id"];
-        if (dlg->roomId == id)
-        {
-            MessageData* result = new MessageData;
-            result->name = convertString(response["name"]);
-            result->message = convertString(response["message"]);
-            result->timestamp = convertString(response["timestamp"]);
-            ::PostMessage(dlg->GetSafeHwnd(), WM_MESSAGE_RECEIVED, (WPARAM)0, reinterpret_cast<LPARAM>(result));
-        }
+        MessageData* result = new MessageData(response["name"], response["message"], response["timestamp"]);
+        if (eventHandler) eventHandler("update_message", response["id"], result);
     }
     catch (const std::exception& e)
     {
@@ -557,8 +501,8 @@ void ChatManager::receive()
         if (recvLen <= 0) 
         {
             std::cerr << "SSL connection lost\n";
-            CString* result = new CString(_T("Disconnected..."));
-            ::PostMessage(dlg->GetSafeHwnd(), WM_LOGOUT_ACTION, TRUE, reinterpret_cast<LPARAM>(result));
+            auto data = std::make_shared<StringData>("Disconnected...");
+            if (eventHandler) eventHandler("logout", true, data.get());
             break;
         }
         message.append(buffer, recvLen);
@@ -613,7 +557,7 @@ void ChatManager::receive()
                 {
                     searchMessageAct(oneMessage);
                 }
-                else if (response.contains("type") && response["type"] == "send_message")
+                else if (response.contains("type") && response["type"] == "update_message")
                 {
                     receiveMessage(oneMessage);
                 }

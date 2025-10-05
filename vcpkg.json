@@ -1,5 +1,5 @@
 {
-  "name": "chatserver",
+  "name": "chat",
   "version": "1.0.0",
   "dependencies": [
     "sqlite3",

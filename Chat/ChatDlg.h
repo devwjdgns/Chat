@@ -7,7 +7,7 @@
 #include "ScrollWnd.h"
 #include "ButtonWnd.h"
 #include "EditWnd.h"
-#include "ChatManager.h"
+#include "../ChatCore/ChatManager.h"
 
 #define WM_LOGIN_ACTION (WM_USER + 100)
 #define WM_REGISTER_ACTION (WM_USER + 101)
@@ -17,21 +17,13 @@
 #define WM_DELETE_ROOM_ACTION (WM_USER + 105)
 #define WM_SEARCH_ROOM_ACTION (WM_USER + 106)
 #define WM_SEARCH_MESSAGE_ACTION (WM_USER + 107)
-
-#define WM_MESSAGE_RECEIVED (WM_USER + 120)
+#define WM_UPDATE_MESSAGE_ACTION (WM_USER + 108)
 
 enum PAGE_NAME
 {
 	LOGIN = 0,
 	REGISTER,
 	MAINCHAT
-};
-
-struct MessageData
-{
-	CString name;
-	CString message;
-	CString timestamp;
 };
 
 class CFriendDlg;
@@ -83,10 +75,11 @@ protected:
 	afx_msg LRESULT OnDeleteRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSearchRoomAction(WPARAM wParam, LPARAM lParam);
 	afx_msg LRESULT OnSearchMessageAction(WPARAM wParam, LPARAM lParam);
-	afx_msg LRESULT OnMessageReceived(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnUpdateMessageAction(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 
 public:
+	void InitEventHandler();
 	void InitLoginView();
 	void InitRegisterView();
 	void InitMainChatView();

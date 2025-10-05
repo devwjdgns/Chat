@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "RoomDlg.h"
-#include "ChatManager.h"
+#include "../ChatCore/ChatManager.h"
 #include "utility.h"
 
 #include <dwmapi.h>
@@ -165,7 +165,12 @@ LRESULT CRoomDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 						MessageBox(_T("Enter room name."), _T("Notice"), MB_OK | MB_ICONINFORMATION);
 						return 0;
 					}
-					chatManager->createRoom(pEdit->GetItemText(), friends);
+					std::vector<std::string> accounts;
+					for (int i = 0; i < friends.GetCount(); i++)
+					{
+						accounts.push_back(convertString(friends.GetAt(i)));
+					}
+					chatManager->createRoom(convertString(pEdit->GetItemText()), accounts);
 				}
 			}
 			else

@@ -63,7 +63,7 @@ CChatDlg::CChatDlg(CWnd* pParent /*=nullptr*/)
 	loginView = nullptr;
 	registerView = nullptr;
 	mainChatView = nullptr;
-	chatManager = std::make_shared<ChatManager>(this);
+	chatManager = std::make_shared<ChatManager>();
 	friendDlg = std::make_unique<CFriendDlg>(chatManager);
 	roomDlg = std::make_unique<CRoomDlg>(chatManager);
 	gdiplusToken = 0;
@@ -162,7 +162,7 @@ BEGIN_MESSAGE_MAP(CChatDlg, CDialogEx)
 	ON_MESSAGE(WM_DELETE_ROOM_ACTION, &CChatDlg::OnDeleteRoomAction)
 	ON_MESSAGE(WM_SEARCH_ROOM_ACTION, &CChatDlg::OnSearchRoomAction)
 	ON_MESSAGE(WM_SEARCH_MESSAGE_ACTION, &CChatDlg::OnSearchMessageAction)
-	ON_MESSAGE(WM_MESSAGE_RECEIVED, &CChatDlg::OnMessageReceived)
+	ON_MESSAGE(WM_UPDATE_MESSAGE_ACTION, &CChatDlg::OnUpdateMessageAction)
 END_MESSAGE_MAP()
 
 
@@ -197,6 +197,7 @@ BOOL CChatDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// 큰 아이콘을 설정합니다.
 	SetIcon(m_hIcon, FALSE);		// 작은 아이콘을 설정합니다.
 
+	InitEventHandler();
 	InitLoginView();
 	InitRegisterView();
 	InitMainChatView();
@@ -331,7 +332,7 @@ LRESULT CChatDlg::OnButtonMenu(WPARAM wParam, LPARAM lParam)
 					{
 						if (auto pBtn = friendView->GetElement<ButtonWnd>(g_nDeleteFriend))
 						{
-							chatManager->deleteFriend(trimFromAffix(pBtn->GetItemText(), _T("("), _T(")")));
+							chatManager->deleteFriend(convertString(trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"))));
 						}
 					}
 				}
@@ -380,7 +381,7 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				MessageBox(_T("Enter password!"), _T("Notice"), MB_OK | MB_ICONINFORMATION);
 				return 0;
 			}
-			chatManager->loginAccount(account, password);
+			chatManager->loginAccount(convertString(account), convertString(password));
 		}
 		else if (str.Compare(_T("LOGOUT")) == 0)
 		{
@@ -422,7 +423,7 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				MessageBox(_T("Enter password!"), _T("Notice"), MB_OK | MB_ICONINFORMATION);
 				return 0;
 			}
-			chatManager->registerAccount(name, account, password);
+			chatManager->registerAccount(convertString(name), convertString(account), convertString(password));
 		}
 		else if (str.Compare(_T("MOVELOGIN")) == 0)
 		{
@@ -509,7 +510,7 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 			g_nSelectFriend = _ttoi(trimFromAffix(str, _T("FRIEND")));
 			pBtn = friendView->GetElement<ButtonWnd>(g_nSelectFriend);
 			if (!pBtn)return 0;
-			pBtn->SetPressedStatus(FALSE);
+			pBtn->SetPressedStatus(TRUE);
 			pBtn->Invalidate();
 
 			if (auto* element = mainChatView->FindElement<ElementWnd>(_T("MESSAGE")))
@@ -522,7 +523,7 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 			}
 
 			CString account = trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"));
-			chatManager->searchMessage(account);
+			chatManager->searchMessage(convertString(account));
 		}
 		else if (str.Find(_T("ROOM")) >= 0)
 		{
@@ -582,7 +583,7 @@ LRESULT CChatDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 					}
 					if (roomId >= 0)
 					{
-						chatManager->sendMessage(roomId, edit->GetItemText(), getCurrentDateTimeString());
+						chatManager->sendMessage(roomId, convertString(edit->GetItemText()), convertString(getCurrentDateTimeString()));
 					}
 				}
 			}
@@ -610,7 +611,7 @@ LRESULT CChatDlg::OnEditComplete(WPARAM wParam, LPARAM lParam)
 
 					if (roomId >= 0)
 					{
-						chatManager->sendMessage(roomId, edit->GetItemText(), getCurrentDateTimeString());
+						chatManager->sendMessage(roomId, convertString(edit->GetItemText()), convertString(getCurrentDateTimeString()));
 					}
 				}
 			}
@@ -915,13 +916,13 @@ LRESULT CChatDlg::OnSearchMessageAction(WPARAM wParam, LPARAM lParam)
 		int count = (int)wParam;
 		for (int i = 0; i < count; ++i)
 		{
-			if (result[i].name.IsEmpty())
+			if (result[i].name.empty())
 			{
-				SendChatMessage(result[i].message, result[i].timestamp, FALSE);
+				SendChatMessage(convertString(result[i].message), convertString(result[i].timestamp), FALSE);
 			}
 			else
 			{
-				ReceiveChatMessage(result[i].name, result[i].message, result[i].timestamp, FALSE);
+				ReceiveChatMessage(convertString(result[i].name), convertString(result[i].message), convertString(result[i].timestamp), FALSE);
 			}
 		}
 		CRect rect;
@@ -931,18 +932,158 @@ LRESULT CChatDlg::OnSearchMessageAction(WPARAM wParam, LPARAM lParam)
 		chatView->SetRedraw(TRUE);
 		chatView->MoveToEnd();
 	}
-
 	delete[] result;
 
 	return 0;
 }
 
-LRESULT CChatDlg::OnMessageReceived(WPARAM wParam, LPARAM lParam)
+LRESULT CChatDlg::OnUpdateMessageAction(WPARAM wParam, LPARAM lParam)
 {
 	MessageData* result = reinterpret_cast<MessageData*>(lParam);
-	ReceiveChatMessage(result->name, result->message, result->timestamp);
+	if (result->name.empty())
+	{
+		SendChatMessage(convertString(result->message), convertString(result->timestamp));
+	}
+	else
+	{
+		ReceiveChatMessage(convertString(result->name), convertString(result->message), convertString(result->timestamp));
+	}
 	delete result;
 	return 0;
+}
+
+void CChatDlg::InitEventHandler()
+{
+	std::unordered_map<std::string, std::function<void(const int&, const IData*)>> handlers;
+
+	handlers["room_info"] = [this](const int& state, const IData* data) {
+		roomId = state;
+		};
+
+	handlers["register"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<StringData>(data))
+		{
+			CString* result = new CString(CA2T(tmp->str.c_str()));
+			::PostMessage(GetSafeHwnd(), WM_REGISTER_ACTION, state, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["login"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<StringData>(data))
+		{
+			CString* result = new CString(CA2T(tmp->str.c_str()));
+			::PostMessage(GetSafeHwnd(), WM_LOGIN_ACTION, state, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["logout"] = [this](const int& state, const IData* data) {
+		roomId = state;
+		};
+
+	handlers["search_user"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<ListData>(data))
+		{
+			int count = static_cast<int>(tmp->list.size());
+			CString* result = new CString[count];
+
+			for (int i = 0; i < count; ++i)
+			{
+				result[i] = convertString(tmp->list[i]);
+			}
+
+			::PostMessage(friendDlg->GetSafeHwnd(), WM_SEARCH_USER_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["add_friend"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<StringData>(data))
+		{
+			CString* result = new CString(CA2T(tmp->str.c_str()));
+			::PostMessage(friendDlg->GetSafeHwnd(), WM_ADD_FRIEND_ACTION, state, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["delete_friend"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<StringData>(data))
+		{
+			CString* result = new CString(CA2T(tmp->str.c_str()));
+			::PostMessage(GetSafeHwnd(), WM_DELETE_FRIEND_ACTION, state, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["search_friend"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<ListData>(data))
+		{
+			int count = static_cast<int>(tmp->list.size());
+			CString* result = new CString[count];
+
+			for (int i = 0; i < count; ++i)
+			{
+				result[i] = convertString(tmp->list[i]);
+			}
+
+			::PostMessage(GetSafeHwnd(), WM_SEARCH_FRIEND_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["create_room"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<StringData>(data))
+		{
+			CString* result = new CString(CA2T(tmp->str.c_str()));
+			::PostMessage(roomDlg->GetSafeHwnd(), WM_CREATE_ROOM_ACTION, state, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["delete_room"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<StringData>(data))
+		{
+			CString* result = new CString(CA2T(tmp->str.c_str()));
+			::PostMessage(GetSafeHwnd(), WM_DELETE_ROOM_ACTION, state, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["search_room"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<ListData>(data))
+		{
+			int count = static_cast<int>(tmp->list.size());
+			CString* result = new CString[count];
+
+			for (int i = 0; i < count; ++i)
+			{
+				result[i] = convertString(tmp->list[i]);
+			}
+
+			::PostMessage(GetSafeHwnd(), WM_SEARCH_ROOM_ACTION, (WPARAM)count, reinterpret_cast<LPARAM>(result));
+		}
+		};
+
+	handlers["search_message"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<MessageData>(data))
+		{
+			::PostMessage(GetSafeHwnd(), WM_SEARCH_MESSAGE_ACTION, (WPARAM)state, reinterpret_cast<LPARAM>(data));
+		}
+		};
+	
+	handlers["update_message"] = [this](const int& state, const IData* data) {
+		if (auto tmp = IData::GetData<MessageData>(data))
+		{
+			if(roomId == state) 
+			{
+				::PostMessage(GetSafeHwnd(), WM_UPDATE_MESSAGE_ACTION, (WPARAM)0, reinterpret_cast<LPARAM>(data));
+			}
+			else
+			{
+				delete data;
+			}
+		}
+		};
+
+	chatManager->setEventHandler([this, handlers](const std::string& type, const int& state, const IData* msg) mutable {
+		auto it = handlers.find(type);
+		if (it != handlers.end()) {
+			it->second(state, msg);
+		}
+		});
 }
 
 void CChatDlg::InitLoginView()

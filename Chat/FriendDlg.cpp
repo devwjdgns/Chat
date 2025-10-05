@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "FriendDlg.h"
-#include "ChatManager.h"
+#include "../ChatCore/ChatManager.h"
 #include "utility.h"
 
 #include <dwmapi.h>
@@ -84,7 +84,7 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				if (auto edit = paneWnd->GetElement<EditWnd>(0))
 				{
 					CString text = edit->GetItemText();
-					chatManager->searchUser(text);
+					chatManager->searchUser(convertString(text));
 					sel = -1;
 				}
 			}
@@ -130,7 +130,7 @@ LRESULT CFriendDlg::OnButtonClick(WPARAM wParam, LPARAM lParam)
 				{
 					ButtonWnd* pBtn = scroll->GetElement<ButtonWnd>(sel);
 					CString account = trimFromAffix(pBtn->GetItemText(), _T("("), _T(")"));
-					chatManager->addFriend(account);
+					chatManager->addFriend(convertString(account));
 				}
 			}
 		}

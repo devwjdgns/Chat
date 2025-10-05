@@ -197,7 +197,6 @@
     <ClInclude Include="ButtonWnd.h" />
     <ClInclude Include="Chat.h" />
     <ClInclude Include="ChatDlg.h" />
-    <ClInclude Include="ChatManager.h" />
     <ClInclude Include="ContainerWnd.h" />
     <ClInclude Include="FriendDlg.h" />
     <ClInclude Include="PaneWnd.h" />
@@ -216,7 +215,6 @@
     <ClCompile Include="ButtonWnd.cpp" />
     <ClCompile Include="Chat.cpp" />
     <ClCompile Include="ChatDlg.cpp" />
-    <ClCompile Include="ChatManager.cpp" />
     <ClCompile Include="ContainerWnd.cpp" />
     <ClCompile Include="FriendDlg.cpp" />
     <ClCompile Include="PaneWnd.cpp" />
@@ -241,6 +239,11 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\Chat.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ChatCore\ChatCore.vcxproj">
+      <Project>{0d7b1e62-bd8f-4707-ac7a-944eca74e346}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
