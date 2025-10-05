@@ -65,7 +65,7 @@ public:
 
 private:
 	std::thread receiver;
-	std::atomic<bool> state{ true };
+	std::atomic<bool> state;
 
 	SSL_CTX* ctx;
 	SSL* ssl;

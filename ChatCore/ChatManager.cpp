@@ -2,7 +2,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-ChatManager::ChatManager()
+ChatManager::ChatManager() : state(false), ctx(nullptr), ssl(nullptr), sock(0)
 {
     std::string ip = "127.0.0.1";
     int port = 12345;
@@ -57,6 +57,8 @@ ChatManager::ChatManager()
     receiver = std::thread([this]() {
         this->receive();
         });
+
+    state = true;
 }
 
 ChatManager::~ChatManager()
@@ -81,14 +83,13 @@ ChatManager::~ChatManager()
     if (ctx) 
         SSL_CTX_free(ctx);
 
-    ERR_free_strings();
-    EVP_cleanup();
+    OPENSSL_cleanup();
     WSACleanup();
 }
 
 void ChatManager::registerAccount(std::string name, std::string account, std::string password)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "register";
@@ -123,7 +124,7 @@ void ChatManager::registerAccountAct(std::string str)
 
 void ChatManager::loginAccount(std::string account, std::string password)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "login";
@@ -157,7 +158,7 @@ void ChatManager::loginAccountAct(std::string str)
 
 void ChatManager::logoutAccount()
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "logout";
@@ -167,7 +168,7 @@ void ChatManager::logoutAccount()
 
 void ChatManager::searchUser(std::string account)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "search_user";
@@ -203,7 +204,7 @@ void ChatManager::searchUserAct(std::string str)
 
 void ChatManager::addFriend(std::string account)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "add_friend";
@@ -236,7 +237,7 @@ void ChatManager::addFriendAct(std::string str)
 
 void ChatManager::deleteFriend(std::string account)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "delete_friend";
@@ -269,7 +270,7 @@ void ChatManager::deleteFriendAct(std::string str)
 
 void ChatManager::searchFriend()
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "search_friend";
@@ -305,7 +306,7 @@ void ChatManager::searchFriendAct(std::string str)
 
 void ChatManager::createRoom(std::string name, std::vector<std::string>& accounts)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "create_room";
@@ -339,7 +340,7 @@ void ChatManager::createRoomAct(std::string str)
 
 void ChatManager::deleteRoom(int id)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "delete_room";
@@ -372,7 +373,7 @@ void ChatManager::deleteRoomAct(std::string str)
 
 void ChatManager::searchRoom()
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "search_room";
@@ -408,7 +409,7 @@ void ChatManager::searchRoomAct(std::string str)
 
 void ChatManager::searchMessage(int id)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "search_message";
@@ -419,7 +420,7 @@ void ChatManager::searchMessage(int id)
 
 void ChatManager::searchMessage(std::string account)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "search_message";
@@ -462,7 +463,7 @@ void ChatManager::searchMessageAct(std::string str)
 
 void ChatManager::sendMessage(int id, std::string message, std::string timestamp)
 {
-    if (!ssl) return;
+    if (!ssl || !state) return;
 
     nlohmann::json j;
     j["type"] = "update_message";
